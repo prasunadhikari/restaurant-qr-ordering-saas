@@ -1,5 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
+import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
+
 import RestaurantLayout from "./layouts/RestaurantLayout";
 import AdminLayout from "./layouts/AdminLayout";
 
@@ -15,8 +17,10 @@ import QRPage from "./pages/restaurant/QRPage";
 import AnalyticsPage from "./pages/restaurant/AnalyticsPage";
 import SettingsPage from "./pages/restaurant/SettingsPage";
 
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import RestaurantsPage from "./pages/admin/RestaurantsPage";
+
 function App() {
   return (
     <BrowserRouter>
@@ -71,16 +75,25 @@ function App() {
           />
         </Route>
 
-        <Route element={<AdminLayout />}>
-  <Route
-    path="/admin"
-    element={<AdminDashboardPage />}
-  />
+        {/* Platform Admin Login */}
+        <Route
+          path="/admin/login"
+          element={<AdminLoginPage />}
+        />
 
-  <Route
-    path="/admin/restaurants"
-    element={<RestaurantsPage />}
-  />
+        {/* Protected Platform Admin */}
+        <Route element={<ProtectedAdminRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route
+              path="/admin"
+              element={<AdminDashboardPage />}
+            />
+
+            <Route
+              path="/admin/restaurants"
+              element={<RestaurantsPage />}
+            />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
