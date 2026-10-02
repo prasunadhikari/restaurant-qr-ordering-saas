@@ -12,24 +12,41 @@ import OrderConfirmation from "../../components/customer/OrderConfirmation";
 import RestaurantHeader from "../../components/customer/RestaurantHeader";
 import SearchBar from "../../components/customer/SearchBar";
 
-import {
-  categories,
-  menuItems,
-} from "../../features/customer/data/menu";
-import type { MenuItem } from "../../types/menu";
+import type {
+  MenuCategory,
+  MenuItem,
+} from "../../types/menu";
 
 function RestaurantMenuPage() {
-  const { tableNumber } = useParams<{
+  const { restaurantSlug, tableNumber } = useParams<{
     restaurantSlug: string;
     tableNumber: string;
   }>();
 
-  const [activeCategory, setActiveCategory] = useState("all");
+  /*
+   * Real restaurant and menu data will be loaded from the backend.
+   *
+   * Planned API:
+   * GET /api/restaurants/slug/:restaurantSlug
+   * GET /api/categories/public/:restaurantId
+   * GET /api/menu/public/:restaurantId
+   *
+   * These empty arrays intentionally replace the previous
+   * hardcoded demo restaurant/menu data.
+   */
+  const categories: MenuCategory[] = [];
+  const menuItems: MenuItem[] = [];
+
+  const [activeCategory, setActiveCategory] =
+    useState("all");
+
   const [search, setSearch] = useState("");
+
   const [selectedItem, setSelectedItem] =
     useState<MenuItem | null>(null);
 
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] =
+    useState<CartItem[]>([]);
 
   const [isCheckoutOpen, setIsCheckoutOpen] =
     useState(false);
@@ -64,7 +81,10 @@ function RestaurantMenuPage() {
   }, [activeCategory, search]);
 
   const groupedItems = useMemo(() => {
-    if (activeCategory !== "all" || search.trim()) {
+    if (
+      activeCategory !== "all" ||
+      search.trim()
+    ) {
       return [];
     }
 
@@ -72,11 +92,18 @@ function RestaurantMenuPage() {
       .map((category) => ({
         category,
         items: filteredItems.filter(
-          (item) => item.categoryId === category.id,
+          (item) =>
+            item.categoryId === category.id,
         ),
       }))
-      .filter((group) => group.items.length > 0);
-  }, [activeCategory, search, filteredItems]);
+      .filter(
+        (group) => group.items.length > 0,
+      );
+  }, [
+    activeCategory,
+    search,
+    filteredItems,
+  ]);
 
   const addToCart = (
     item: MenuItem,
@@ -85,7 +112,8 @@ function RestaurantMenuPage() {
   ) => {
     setCartItems((current) => {
       const existing = current.find(
-        (cartItem) => cartItem.item.id === item.id,
+        (cartItem) =>
+          cartItem.item.id === item.id,
       );
 
       if (existing) {
@@ -95,7 +123,8 @@ function RestaurantMenuPage() {
                 ...cartItem,
                 quantity:
                   cartItem.quantity + quantity,
-                note: note || cartItem.note,
+                note:
+                  note || cartItem.note,
               }
             : cartItem,
         );
@@ -112,7 +141,9 @@ function RestaurantMenuPage() {
     });
   };
 
-  const increaseQuantity = (itemId: string) => {
+  const increaseQuantity = (
+    itemId: string,
+  ) => {
     setCartItems((current) =>
       current.map((cartItem) =>
         cartItem.item.id === itemId
@@ -126,7 +157,9 @@ function RestaurantMenuPage() {
     );
   };
 
-  const decreaseQuantity = (itemId: string) => {
+  const decreaseQuantity = (
+    itemId: string,
+  ) => {
     setCartItems((current) =>
       current
         .map((cartItem) =>
@@ -139,12 +172,15 @@ function RestaurantMenuPage() {
             : cartItem,
         )
         .filter(
-          (cartItem) => cartItem.quantity > 0,
+          (cartItem) =>
+            cartItem.quantity > 0,
         ),
     );
   };
 
-  const removeItem = (itemId: string) => {
+  const removeItem = (
+    itemId: string,
+  ) => {
     setCartItems((current) =>
       current.filter(
         (cartItem) =>
@@ -154,9 +190,26 @@ function RestaurantMenuPage() {
   };
 
   const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      return;
+    }
+
     setIsCheckoutOpen(true);
   };
 
+  /*
+   * Order creation will be connected to the backend later.
+   *
+   * Planned API:
+   * POST /api/orders
+   *
+   * The customer order should contain:
+   * - restaurantId
+   * - tableId
+   * - items
+   * - customerName
+   * - customerNote
+   */
   const handlePlaceOrder = (
     customerName: string,
     orderNote: string,
@@ -175,22 +228,31 @@ function RestaurantMenuPage() {
       0,
     );
 
-    const generatedOrderNumber =
-      `KTM-${Math.floor(
-        1000 + Math.random() * 9000,
-      )}`;
+    /*
+     * Backend-generated order numbers will replace
+     * this temporary empty state.
+     */
+    const generatedOrderNumber = "";
 
-    console.log("Demo order:", {
-      orderNumber: generatedOrderNumber,
-      tableNumber: tableNumber || "08",
-      customerName,
-      orderNote,
-      items: cartItems,
-      total,
-    });
+    console.log(
+      "Order submission is waiting for backend integration.",
+      {
+        restaurantSlug,
+        tableNumber,
+        customerName,
+        orderNote,
+        items: cartItems,
+      },
+    );
 
-    setOrderNumber(generatedOrderNumber);
-    setConfirmedItemCount(itemCount);
+    setOrderNumber(
+      generatedOrderNumber,
+    );
+
+    setConfirmedItemCount(
+      itemCount,
+    );
+
     setConfirmedTotal(total);
 
     setIsCheckoutOpen(false);
@@ -206,14 +268,20 @@ function RestaurantMenuPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-36">
       <RestaurantHeader
-        restaurantName="Kathmandu Cafe"
-        location="Thamel, Kathmandu"
-        type="Cafe & Restaurant"
-        tableNumber={tableNumber || "08"}
-        isOpen
-        rating={4.8}
-        coverImage="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1600&q=85"
-        logo="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=300&q=85"
+        restaurantName={
+          restaurantSlug
+            ? restaurantSlug
+            : "Restaurant"
+        }
+        location="Restaurant location"
+        type="Restaurant"
+        tableNumber={
+          tableNumber || "—"
+        }
+        isOpen={false}
+        rating={0}
+        coverImage=""
+        logo=""
       />
 
       <main className="mx-auto max-w-4xl">
@@ -224,14 +292,48 @@ function RestaurantMenuPage() {
           />
         </div>
 
-        <CategoryTabs
-          categories={categories}
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-        />
+        {categories.length > 0 && (
+          <CategoryTabs
+            categories={categories}
+            activeCategory={
+              activeCategory
+            }
+            onCategoryChange={
+              setActiveCategory
+            }
+          />
+        )}
 
         <div className="px-4 py-6 sm:px-6">
-          {filteredItems.length === 0 ? (
+          {menuItems.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-14 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
+                🍽️
+              </div>
+
+              <h2 className="mt-4 text-lg font-bold text-slate-900">
+                Menu not available yet
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                This restaurant's menu will appear
+                here once the restaurant has added
+                categories and menu items.
+              </p>
+
+              {restaurantSlug && (
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-slate-400">
+                  Restaurant: {restaurantSlug}
+                </p>
+              )}
+
+              {tableNumber && (
+                <p className="mt-1 text-xs text-slate-400">
+                  Table: {tableNumber}
+                </p>
+              )}
+            </div>
+          ) : filteredItems.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
                 🔍
@@ -242,14 +344,19 @@ function RestaurantMenuPage() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Try another search or choose a different category.
+                Try another search or choose a
+                different category.
               </p>
             </div>
-          ) : activeCategory === "all" &&
+          ) : activeCategory ===
+              "all" &&
             !search.trim() ? (
             <div className="space-y-10">
               {groupedItems.map(
-                ({ category, items }) => (
+                ({
+                  category,
+                  items,
+                }) => (
                   <section
                     key={category.id}
                     id={`category-${category.id}`}
@@ -263,7 +370,8 @@ function RestaurantMenuPage() {
 
                         <p className="mt-1 text-sm text-slate-500">
                           {items.length}{" "}
-                          {items.length === 1
+                          {items.length ===
+                          1
                             ? "item"
                             : "items"}
                         </p>
@@ -271,17 +379,21 @@ function RestaurantMenuPage() {
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      {items.map((item) => (
-                        <MenuItemCard
-                          key={item.id}
-                          item={item}
-                          onAdd={(selected) =>
-                            setSelectedItem(
+                      {items.map(
+                        (item) => (
+                          <MenuItemCard
+                            key={item.id}
+                            item={item}
+                            onAdd={(
                               selected,
-                            )
-                          }
-                        />
-                      ))}
+                            ) =>
+                              setSelectedItem(
+                                selected,
+                              )
+                            }
+                          />
+                        ),
+                      )}
                     </div>
                   </section>
                 ),
@@ -294,15 +406,19 @@ function RestaurantMenuPage() {
                   {search.trim()
                     ? "Search results"
                     : categories.find(
-                          (category) =>
+                          (
+                            category,
+                          ) =>
                             category.id ===
                             activeCategory,
-                        )?.name || "Menu"}
+                        )?.name ||
+                      "Menu"}
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
                   {filteredItems.length}{" "}
-                  {filteredItems.length === 1
+                  {filteredItems.length ===
+                  1
                     ? "item"
                     : "items"}{" "}
                   found
@@ -310,17 +426,19 @@ function RestaurantMenuPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {filteredItems.map((item) => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAdd={(selected) =>
-                      setSelectedItem(
-                        selected,
-                      )
-                    }
-                  />
-                ))}
+                {filteredItems.map(
+                  (item) => (
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      onAdd={(selected) =>
+                        setSelectedItem(
+                          selected,
+                        )
+                      }
+                    />
+                  ),
+                )}
               </div>
             </section>
           )}
@@ -329,7 +447,9 @@ function RestaurantMenuPage() {
 
       <FoodDetailsModal
         item={selectedItem}
-        isOpen={Boolean(selectedItem)}
+        isOpen={Boolean(
+          selectedItem,
+        )}
         onClose={() =>
           setSelectedItem(null)
         }
@@ -338,29 +458,52 @@ function RestaurantMenuPage() {
 
       <Cart
         items={cartItems}
-        onIncrease={increaseQuantity}
-        onDecrease={decreaseQuantity}
+        onIncrease={
+          increaseQuantity
+        }
+        onDecrease={
+          decreaseQuantity
+        }
         onRemove={removeItem}
-        onCheckout={handleCheckout}
+        onCheckout={
+          handleCheckout
+        }
       />
 
       <CheckoutModal
-        isOpen={isCheckoutOpen}
+        isOpen={
+          isCheckoutOpen
+        }
         onClose={() =>
           setIsCheckoutOpen(false)
         }
         items={cartItems}
-        tableNumber={tableNumber || "08"}
-        onPlaceOrder={handlePlaceOrder}
+        tableNumber={
+          tableNumber || "—"
+        }
+        onPlaceOrder={
+          handlePlaceOrder
+        }
       />
 
       {isOrderConfirmed && (
         <OrderConfirmation
-          orderNumber={orderNumber}
-          tableNumber={tableNumber || "08"}
-          itemCount={confirmedItemCount}
-          total={confirmedTotal}
-          onBackToMenu={handleBackToMenu}
+          orderNumber={
+            orderNumber ||
+            "Order submitted"
+          }
+          tableNumber={
+            tableNumber || "—"
+          }
+          itemCount={
+            confirmedItemCount
+          }
+          total={
+            confirmedTotal
+          }
+          onBackToMenu={
+            handleBackToMenu
+          }
         />
       )}
     </div>

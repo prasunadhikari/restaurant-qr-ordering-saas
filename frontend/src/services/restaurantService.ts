@@ -14,8 +14,15 @@ export interface Restaurant {
   coverImage: string;
   phone: string;
   address: string;
+
+  openingHours?: {
+    open: string;
+    close: string;
+  };
+
   status: "active" | "pending" | "suspended";
   plan: "starter" | "professional" | "custom";
+
   ownerId?: RestaurantOwner;
   createdAt: string;
   updatedAt: string;

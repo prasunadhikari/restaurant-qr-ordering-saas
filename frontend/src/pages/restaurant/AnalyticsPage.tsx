@@ -16,105 +16,36 @@ type TopDish = {
   revenue: number;
 };
 
-const dailyRevenue: DailyRevenue[] = [
-  { day: "Fri", revenue: 14200, orders: 19 },
-  { day: "Sat", revenue: 18650, orders: 25 },
-  { day: "Sun", revenue: 22400, orders: 31 },
-  { day: "Mon", revenue: 15900, orders: 21 },
-  { day: "Tue", revenue: 17100, orders: 23 },
-  { day: "Wed", revenue: 19850, orders: 27 },
-  { day: "Thu", revenue: 18450, orders: 24 },
-];
+type CategoryPerformance = {
+  name: string;
+  orders: number;
+  revenue: number;
+  percentage: number;
+};
 
-const topDishes: TopDish[] = [
-  {
-    name: "Chicken Momo",
-    category: "Momo",
-    orders: 86,
-    revenue: 13760,
-  },
-  {
-    name: "Dal Bhat",
-    category: "Nepali",
-    orders: 64,
-    revenue: 16640,
-  },
-  {
-    name: "Chicken Chowmein",
-    category: "Chowmein",
-    orders: 51,
-    revenue: 8160,
-  },
-  {
-    name: "Chicken Sekuwa",
-    category: "Nepali",
-    orders: 43,
-    revenue: 9460,
-  },
-  {
-    name: "Masala Tea",
-    category: "Drinks",
-    orders: 72,
-    revenue: 5760,
-  },
-];
-
-const categoryPerformance = [
-  {
-    name: "Momo",
-    orders: 142,
-    revenue: 22480,
-    percentage: 82,
-  },
-  {
-    name: "Nepali",
-    orders: 118,
-    revenue: 28640,
-    percentage: 68,
-  },
-  {
-    name: "Chowmein",
-    orders: 94,
-    revenue: 15120,
-    percentage: 55,
-  },
-  {
-    name: "Drinks",
-    orders: 86,
-    revenue: 10320,
-    percentage: 49,
-  },
-  {
-    name: "Snacks",
-    orders: 61,
-    revenue: 9150,
-    percentage: 35,
-  },
-];
-
-const busyHours = [
-  { time: "8 AM", orders: 8 },
-  { time: "10 AM", orders: 12 },
-  { time: "12 PM", orders: 21 },
-  { time: "2 PM", orders: 17 },
-  { time: "4 PM", orders: 9 },
-  { time: "6 PM", orders: 24 },
-  { time: "8 PM", orders: 29 },
-  { time: "10 PM", orders: 14 },
-];
+type BusyHour = {
+  time: string;
+  orders: number;
+};
 
 function formatNPR(amount: number) {
   return `NPR ${amount.toLocaleString("en-IN")}`;
 }
 
 function AnalyticsPage() {
+  // Real analytics will come from the backend.
+  const dailyRevenue: DailyRevenue[] = [];
+  const topDishes: TopDish[] = [];
+  const categoryPerformance: CategoryPerformance[] = [];
+  const busyHours: BusyHour[] = [];
+
   const totalRevenue = useMemo(
     () =>
       dailyRevenue.reduce(
         (total, day) => total + day.revenue,
         0,
       ),
-    [],
+    [dailyRevenue],
   );
 
   const totalOrders = useMemo(
@@ -123,7 +54,7 @@ function AnalyticsPage() {
         (total, day) => total + day.orders,
         0,
       ),
-    [],
+    [dailyRevenue],
   );
 
   const averageOrderValue =
@@ -131,13 +62,19 @@ function AnalyticsPage() {
       ? Math.round(totalRevenue / totalOrders)
       : 0;
 
-  const maxRevenue = Math.max(
-    ...dailyRevenue.map((day) => day.revenue),
-  );
+  const maxRevenue =
+    dailyRevenue.length > 0
+      ? Math.max(
+          ...dailyRevenue.map((day) => day.revenue),
+        )
+      : 0;
 
-  const maxBusyOrders = Math.max(
-    ...busyHours.map((hour) => hour.orders),
-  );
+  const maxBusyOrders =
+    busyHours.length > 0
+      ? Math.max(
+          ...busyHours.map((hour) => hour.orders),
+        )
+      : 0;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -159,7 +96,7 @@ function AnalyticsPage() {
         </div>
 
         <Badge variant="info">
-          Last 7 days
+          Waiting for data
         </Badge>
       </div>
 
@@ -174,13 +111,9 @@ function AnalyticsPage() {
             {formatNPR(totalRevenue)}
           </p>
 
-          <div className="mt-3 flex items-center gap-2">
-            <Badge variant="success">
-              +12.8%
-            </Badge>
-
+          <div className="mt-3">
             <span className="text-xs text-slate-400">
-              vs previous week
+              No revenue data yet
             </span>
           </div>
         </Card>
@@ -194,13 +127,9 @@ function AnalyticsPage() {
             {totalOrders}
           </p>
 
-          <div className="mt-3 flex items-center gap-2">
-            <Badge variant="success">
-              +9.4%
-            </Badge>
-
+          <div className="mt-3">
             <span className="text-xs text-slate-400">
-              vs previous week
+              No order data yet
             </span>
           </div>
         </Card>
@@ -227,12 +156,12 @@ function AnalyticsPage() {
           </p>
 
           <p className="mt-2 text-2xl font-bold text-slate-900">
-            8 / 20
+            —
           </p>
 
           <div className="mt-3">
-            <span className="text-xs text-emerald-600">
-              40% table occupancy
+            <span className="text-xs text-slate-400">
+              Table data not connected
             </span>
           </div>
         </Card>
@@ -247,54 +176,76 @@ function AnalyticsPage() {
             </h3>
 
             <p className="mt-1 text-sm text-slate-500">
-              Daily revenue for the last seven days.
+              Daily revenue will appear here once order data is
+              connected.
             </p>
           </div>
 
-          <Badge variant="success">
+          <Badge variant="default">
             {formatNPR(totalRevenue)}
           </Badge>
         </div>
 
-        <div className="mt-8">
-          <div className="flex h-64 items-end gap-2 sm:gap-4">
-            {dailyRevenue.map((day) => {
-              const height =
-                (day.revenue / maxRevenue) * 100;
+        {dailyRevenue.length === 0 ? (
+          <div className="mt-8 flex min-h-64 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
+            <div className="px-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-sm">
+                ↗
+              </div>
 
-              return (
-                <div
-                  key={day.day}
-                  className="flex h-full flex-1 flex-col items-center justify-end gap-3"
-                >
-                  <div className="relative flex w-full flex-1 items-end">
-                    <div
-                      className="group relative w-full rounded-t-xl bg-emerald-500 transition-all duration-300 hover:bg-emerald-600"
-                      style={{
-                        height: `${height}%`,
-                        minHeight: "18px",
-                      }}
-                    >
-                      <div className="absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white group-hover:block">
-                        {formatNPR(day.revenue)}
+              <p className="mt-4 text-sm font-semibold text-slate-800">
+                No revenue data yet
+              </p>
+
+              <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
+                Revenue charts will be populated from completed
+                restaurant orders.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-8">
+            <div className="flex h-64 items-end gap-2 sm:gap-4">
+              {dailyRevenue.map((day) => {
+                const height =
+                  maxRevenue > 0
+                    ? (day.revenue / maxRevenue) * 100
+                    : 0;
+
+                return (
+                  <div
+                    key={day.day}
+                    className="flex h-full flex-1 flex-col items-center justify-end gap-3"
+                  >
+                    <div className="relative flex w-full flex-1 items-end">
+                      <div
+                        className="group relative w-full rounded-t-xl bg-emerald-500 transition-all duration-300 hover:bg-emerald-600"
+                        style={{
+                          height: `${height}%`,
+                          minHeight: "18px",
+                        }}
+                      >
+                        <div className="absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white group-hover:block">
+                          {formatNPR(day.revenue)}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="text-center">
-                    <p className="text-xs font-semibold text-slate-600">
-                      {day.day}
-                    </p>
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-slate-600">
+                        {day.day}
+                      </p>
 
-                    <p className="mt-0.5 text-[11px] text-slate-400">
-                      {day.orders} orders
-                    </p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {day.orders} orders
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </Card>
 
       {/* Top dishes + category performance */}
@@ -311,38 +262,51 @@ function AnalyticsPage() {
             </p>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {topDishes.map((dish, index) => (
-              <div
-                key={dish.name}
-                className="flex items-center gap-4 px-5 py-4"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-600">
-                  {index + 1}
+          {topDishes.length === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <p className="text-sm font-semibold text-slate-800">
+                No dish data yet
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                Popular dishes will appear after orders are
+                connected.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {topDishes.map((dish, index) => (
+                <div
+                  key={dish.name}
+                  className="flex items-center gap-4 px-5 py-4"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-600">
+                    {index + 1}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-900">
+                      {dish.name}
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {dish.category}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-slate-900">
+                      {dish.orders} orders
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {formatNPR(dish.revenue)}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-slate-900">
-                    {dish.name}
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    {dish.category}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900">
-                    {dish.orders} orders
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {formatNPR(dish.revenue)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Category performance */}
@@ -357,36 +321,49 @@ function AnalyticsPage() {
             </p>
           </div>
 
-          <div className="mt-6 space-y-5">
-            {categoryPerformance.map((category) => (
-              <div key={category.name}>
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">
-                      {category.name}
-                    </p>
+          {categoryPerformance.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
+              <p className="text-sm font-semibold text-slate-800">
+                No category data yet
+              </p>
 
-                    <p className="text-xs text-slate-400">
-                      {category.orders} orders
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Category performance will be calculated from
+                completed orders.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-5">
+              {categoryPerformance.map((category) => (
+                <div key={category.name}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">
+                        {category.name}
+                      </p>
+
+                      <p className="text-xs text-slate-400">
+                        {category.orders} orders
+                      </p>
+                    </div>
+
+                    <p className="text-sm font-bold text-slate-900">
+                      {formatNPR(category.revenue)}
                     </p>
                   </div>
 
-                  <p className="text-sm font-bold text-slate-900">
-                    {formatNPR(category.revenue)}
-                  </p>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{
+                        width: `${category.percentage}%`,
+                      }}
+                    />
+                  </div>
                 </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                    style={{
-                      width: `${category.percentage}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -403,64 +380,84 @@ function AnalyticsPage() {
             </p>
           </div>
 
-          <Badge variant="warning">
-            Peak: 8 PM
+          <Badge variant="default">
+            No peak data
           </Badge>
         </div>
 
-        <div className="mt-8 overflow-x-auto">
-          <div className="flex min-w-[620px] items-end gap-3">
-            {busyHours.map((hour) => {
-              const height =
-                (hour.orders / maxBusyOrders) * 100;
+        {busyHours.length === 0 ? (
+          <div className="mt-8 flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50">
+            <div className="px-6 text-center">
+              <p className="text-sm font-semibold text-slate-800">
+                No order activity yet
+              </p>
 
-              return (
-                <div
-                  key={hour.time}
-                  className="flex flex-1 flex-col items-center gap-3"
-                >
-                  <div className="relative flex h-48 w-full items-end">
-                    <div
-                      className="group relative w-full rounded-t-lg bg-slate-200 transition-all duration-300 hover:bg-emerald-500"
-                      style={{
-                        height: `${height}%`,
-                        minHeight: "12px",
-                      }}
-                    >
-                      <span className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 rounded-md bg-slate-900 px-2 py-1 text-xs font-semibold text-white group-hover:block">
-                        {hour.orders}
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className="whitespace-nowrap text-xs font-medium text-slate-500">
-                    {hour.time}
-                  </span>
-                </div>
-              );
-            })}
+              <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
+                Busy-hour analytics will be calculated from
+                real order timestamps.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mt-8 overflow-x-auto">
+            <div className="flex min-w-[620px] items-end gap-3">
+              {busyHours.map((hour) => {
+                const height =
+                  maxBusyOrders > 0
+                    ? (hour.orders / maxBusyOrders) * 100
+                    : 0;
+
+                return (
+                  <div
+                    key={hour.time}
+                    className="flex flex-1 flex-col items-center gap-3"
+                  >
+                    <div className="relative flex h-48 w-full items-end">
+                      <div
+                        className="group relative w-full rounded-t-lg bg-slate-200 transition-all duration-300 hover:bg-emerald-500"
+                        style={{
+                          height: `${height}%`,
+                          minHeight: "12px",
+                        }}
+                      >
+                        <span className="absolute bottom-full left-1/2 mb-1 hidden -translate-x-1/2 rounded-md bg-slate-900 px-2 py-1 text-xs font-semibold text-white group-hover:block">
+                          {hour.orders}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="whitespace-nowrap text-xs font-medium text-slate-500">
+                      {hour.time}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Summary */}
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+      {/* Backend connection note */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex gap-3">
-          <div className="mt-0.5 text-lg">
-            💡
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm">
+            i
           </div>
 
           <div>
-            <p className="text-sm font-bold text-emerald-900">
-              Performance summary
+            <p className="text-sm font-bold text-slate-900">
+              Analytics data is not connected yet
             </p>
 
-            <p className="mt-1 text-sm leading-6 text-emerald-700">
-              Kathmandu Cafe processed {totalOrders} orders
-              and generated {formatNPR(totalRevenue)} in the
-              last seven days. The busiest period is around
-              dinner time, with 8 PM currently showing the
-              highest order volume.
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              This page is now free of demo revenue, order,
+              dish, category, and busy-hour data. Analytics will
+              be calculated from real MongoDB orders and tables
+              once the backend ordering system is implemented.
+            </p>
+
+            <p className="mt-2 text-xs font-semibold text-slate-400">
+              Planned API: GET /api/analytics
             </p>
           </div>
         </div>

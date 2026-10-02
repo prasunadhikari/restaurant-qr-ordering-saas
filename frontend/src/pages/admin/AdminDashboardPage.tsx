@@ -1,146 +1,136 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Activity,
+  ArrowUpRight,
+  Database,
+  QrCode,
+  Radio,
+  RefreshCw,
+  Server,
+  Settings,
+  Store,
+  Users,
+} from "lucide-react";
 
 import Badge from "../../components/ui/Badge";
 import Card from "../../components/ui/Card";
+import {
+  getAllRestaurants,
+  type Restaurant,
+} from "../../services/restaurantService";
 
 function AdminDashboardPage() {
-  const revenueData = [
-    { day: "Fri", value: 42 },
-    { day: "Sat", value: 58 },
-    { day: "Sun", value: 51 },
-    { day: "Mon", value: 67 },
-    { day: "Tue", value: 74 },
-    { day: "Wed", value: 81 },
-    { day: "Thu", value: 94 },
-  ];
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(
+    [],
+  );
 
-  const restaurants = [
-    {
-      name: "Kathmandu Cafe",
-      location: "Thamel, Kathmandu",
-      initials: "KC",
-      plan: "Professional",
-      status: "Active",
-      orders: 284,
-      revenue: "NPR 82,450",
-    },
-    {
-      name: "Himalayan Bites",
-      location: "Lazimpat, Kathmandu",
-      initials: "HB",
-      plan: "Starter",
-      status: "Active",
-      orders: 198,
-      revenue: "NPR 61,280",
-    },
-    {
-      name: "The Local Kitchen",
-      location: "Patan, Lalitpur",
-      initials: "LK",
-      plan: "Professional",
-      status: "Active",
-      orders: 246,
-      revenue: "NPR 74,620",
-    },
-    {
-      name: "Momo House",
-      location: "New Baneshwor",
-      initials: "MH",
-      plan: "Starter",
-      status: "Pending",
-      orders: 0,
-      revenue: "NPR 0",
-    },
-  ];
+  const [loadingRestaurants, setLoadingRestaurants] =
+    useState(true);
 
-  const orders = [
-    {
-      id: "KTM-2841",
-      restaurant: "Kathmandu Cafe",
-      table: "Table 08",
-      amount: "NPR 1,850",
-      status: "Preparing",
-      time: "2 min ago",
-    },
-    {
-      id: "HMB-1938",
-      restaurant: "Himalayan Bites",
-      table: "Table 04",
-      amount: "NPR 1,240",
-      status: "New",
-      time: "5 min ago",
-    },
-    {
-      id: "TLK-1842",
-      restaurant: "The Local Kitchen",
-      table: "Table 11",
-      amount: "NPR 2,450",
-      status: "Ready",
-      time: "8 min ago",
-    },
-    {
-      id: "EVG-3211",
-      restaurant: "Everest Garden",
-      table: "Table 16",
-      amount: "NPR 980",
-      status: "Served",
-      time: "12 min ago",
-    },
-    {
-      id: "THK-2741",
-      restaurant: "Thakali Kitchen",
-      table: "Table 03",
-      amount: "NPR 1,620",
-      status: "Preparing",
-      time: "16 min ago",
-    },
-  ];
+  const [restaurantError, setRestaurantError] =
+    useState("");
 
-  const statusStyles: Record<string, "success" | "warning" | "info" | "default"> =
-    {
-      New: "info",
-      Preparing: "warning",
-      Ready: "success",
-      Served: "default",
-    };
+  const loadRestaurants = async () => {
+    try {
+      setLoadingRestaurants(true);
+      setRestaurantError("");
+
+      const data = await getAllRestaurants();
+
+      setRestaurants(data);
+    } catch (error) {
+      console.error(
+        "Failed to load dashboard restaurants:",
+        error,
+      );
+
+      setRestaurantError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load restaurants.",
+      );
+    } finally {
+      setLoadingRestaurants(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadRestaurants();
+  }, []);
+
+  const activeRestaurants = restaurants.filter(
+    (restaurant) => restaurant.status === "active",
+  ).length;
+
+  const pendingRestaurants = restaurants.filter(
+    (restaurant) => restaurant.status === "pending",
+  ).length;
+
+  const suspendedRestaurants = restaurants.filter(
+    (restaurant) => restaurant.status === "suspended",
+  ).length;
+
+  const formatDate = (date: string) => {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(date));
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("");
+  };
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6">
-      {/* Header */}
-      <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+    <div className="mx-auto max-w-[1500px] space-y-7">
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-3 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
 
-            <span className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-600">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">
               Platform overview
             </span>
           </div>
 
           <h2 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-            Good evening, Admin.
+            Good morning, Admin.
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-            Monitor restaurants, orders, revenue and platform activity
-            from one place.
+            Manage your restaurant network and monitor the
+            platform from one place.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+            <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
               Today
             </p>
 
             <p className="mt-0.5 text-sm font-bold text-slate-800">
-              October 1, 2026
+              {new Intl.DateTimeFormat("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              }).format(new Date())}
             </p>
           </div>
 
           <Link
             to="/admin/restaurants"
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-bold text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700"
           >
             <span className="text-lg leading-none">+</span>
             Add restaurant
@@ -148,374 +138,241 @@ function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* KPI grid */}
+      {/* =====================================================
+          KPI CARDS
+      ====================================================== */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Restaurants */}
-        <Card padding="none" hover>
+        <Card padding="none">
           <div className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
                   Restaurants
                 </p>
 
                 <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-                  18
+                  {loadingRestaurants
+                    ? "—"
+                    : restaurants.length}
                 </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded-md bg-emerald-50 px-1.5 py-1 text-[11px] font-bold text-emerald-700">
-                    +3
-                  </span>
-
-                  <span className="text-xs text-slate-400">
-                    this month
-                  </span>
-                </div>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-sm font-black text-white">
-                R
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Store size={18} strokeWidth={1.8} />
               </div>
             </div>
 
-            <div className="mt-5 flex h-8 items-end gap-1">
-              {[35, 48, 42, 56, 52, 70, 82, 76, 94].map(
-                (height, index) => (
-                  <div
-                    key={index}
-                    className={`flex-1 rounded-sm ${
-                      index === 8
-                        ? "bg-emerald-500"
-                        : "bg-slate-200"
-                    }`}
-                    style={{ height: `${height}%` }}
-                  />
-                ),
-              )}
+            <div className="mt-5 flex items-center gap-4 border-t border-slate-100 pt-4">
+              <div>
+                <p className="text-[10px] font-medium text-slate-400">
+                  Active
+                </p>
+
+                <p className="mt-0.5 text-xs font-black text-emerald-600">
+                  {loadingRestaurants
+                    ? "—"
+                    : activeRestaurants}
+                </p>
+              </div>
+
+              <div className="h-6 w-px bg-slate-200" />
+
+              <div>
+                <p className="text-[10px] font-medium text-slate-400">
+                  Pending
+                </p>
+
+                <p className="mt-0.5 text-xs font-black text-slate-700">
+                  {loadingRestaurants
+                    ? "—"
+                    : pendingRestaurants}
+                </p>
+              </div>
+
+              <div className="h-6 w-px bg-slate-200" />
+
+              <div>
+                <p className="text-[10px] font-medium text-slate-400">
+                  Suspended
+                </p>
+
+                <p className="mt-0.5 text-xs font-black text-slate-700">
+                  {loadingRestaurants
+                    ? "—"
+                    : suspendedRestaurants}
+                </p>
+              </div>
             </div>
           </div>
         </Card>
 
         {/* Orders */}
-        <Card padding="none" hover>
+        <Card padding="none">
           <div className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
                   Total orders
                 </p>
 
                 <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-                  1,284
+                  —
                 </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded-md bg-emerald-50 px-1.5 py-1 text-[11px] font-bold text-emerald-700">
-                    +12.8%
-                  </span>
-
-                  <span className="text-xs text-slate-400">
-                    vs last month
-                  </span>
-                </div>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-lg">
-                ↗
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <Activity size={18} strokeWidth={1.8} />
               </div>
             </div>
 
-            <div className="mt-5 h-8">
-              <svg
-                viewBox="0 0 220 40"
-                className="h-full w-full"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,32 28,27 55,30 82,20 110,24 138,13 166,17 193,7 220,4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  className="text-emerald-500"
-                />
-
-                <polyline
-                  points="0,39 28,34 55,37 82,27 110,31 138,20 166,24 193,14 220,11 220,40 0,40"
-                  fill="currentColor"
-                  className="text-emerald-50"
-                />
-              </svg>
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="text-xs font-medium text-slate-400">
+                Order analytics will appear once the order
+                system is connected.
+              </p>
             </div>
           </div>
         </Card>
 
         {/* Revenue */}
-        <Card padding="none" hover>
+        <Card padding="none">
           <div className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
                   Platform revenue
                 </p>
 
                 <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-                  NPR 428K
+                  —
                 </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded-md bg-emerald-50 px-1.5 py-1 text-[11px] font-bold text-emerald-700">
-                    +18.4%
-                  </span>
-
-                  <span className="text-xs text-slate-400">
-                    vs last month
-                  </span>
-                </div>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-lg">
-                ₨
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <span className="text-base font-black">
+                  ₨
+                </span>
               </div>
             </div>
 
-            <div className="mt-5 h-8">
-              <div className="flex h-full items-end gap-1.5">
-                {[35, 48, 40, 65, 56, 76, 64, 84, 94].map(
-                  (height, index) => (
-                    <div
-                      key={index}
-                      className={`flex-1 rounded-t-sm ${
-                        index === 8
-                          ? "bg-emerald-500"
-                          : "bg-slate-200"
-                      }`}
-                      style={{ height: `${height}%` }}
-                    />
-                  ),
-                )}
-              </div>
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="text-xs font-medium text-slate-400">
+                Revenue analytics will appear once billing is
+                connected.
+              </p>
             </div>
           </div>
         </Card>
 
         {/* Tables */}
-        <Card padding="none" hover>
+        <Card padding="none">
           <div className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
                   Active tables
                 </p>
 
                 <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-                  76
+                  —
                 </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded-md bg-blue-50 px-1.5 py-1 text-[11px] font-bold text-blue-700">
-                    84%
-                  </span>
-
-                  <span className="text-xs text-slate-400">
-                    utilization
-                  </span>
-                </div>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-lg">
-                ▦
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <QrCode size={18} strokeWidth={1.8} />
               </div>
             </div>
 
-            <div className="mt-5">
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full w-[84%] rounded-full bg-emerald-500" />
-              </div>
-
-              <div className="mt-2 flex justify-between text-[10px] font-semibold text-slate-400">
-                <span>0</span>
-                <span>90 tables total</span>
-              </div>
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="text-xs font-medium text-slate-400">
+                Table analytics will appear once table
+                management is connected.
+              </p>
             </div>
           </div>
         </Card>
       </section>
 
-      {/* Revenue + live activity */}
-      <section className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
-        {/* Revenue chart */}
+      {/* =====================================================
+          REVENUE / ACTIVITY
+      ====================================================== */}
+      <section className="grid gap-6 xl:grid-cols-[1.65fr_1fr]">
+        {/* Revenue */}
         <Card padding="none">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
+          <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
                 <h3 className="text-base font-black text-slate-950">
                   Revenue overview
                 </h3>
 
-                <Badge variant="success">
-                  +18.4%
-                </Badge>
+                <p className="mt-1 text-xs text-slate-400">
+                  Revenue performance across the platform.
+                </p>
               </div>
 
-              <p className="mt-1 text-xs text-slate-400">
-                Platform revenue generated over the last 7 days
-              </p>
+              <span className="inline-flex w-fit items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-500">
+                Awaiting data
+              </span>
             </div>
-
-            <select
-              className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 outline-none"
-              defaultValue="7"
-            >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-            </select>
           </div>
 
-          <div className="p-5">
-            <div className="mb-4 flex items-end justify-between">
-              <div>
-                <p className="text-3xl font-black tracking-tight text-slate-950">
-                  NPR 94K
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Thursday revenue
-                </p>
+          <div className="flex min-h-[320px] items-center justify-center px-6 py-10">
+            <div className="max-w-sm text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                <Activity size={23} strokeWidth={1.7} />
               </div>
 
-              <p className="text-xs font-semibold text-slate-400">
-                NPR thousands
+              <h4 className="mt-4 text-sm font-black text-slate-800">
+                Revenue analytics are not available yet
+              </h4>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                The chart will automatically use real order and
+                billing data after those backend modules are
+                implemented.
               </p>
-            </div>
-
-            <div className="relative h-64">
-              {/* Grid */}
-              <div className="absolute inset-0 flex flex-col justify-between">
-                {[100, 75, 50, 25, 0].map((value) => (
-                  <div
-                    key={value}
-                    className="flex items-center gap-3"
-                  >
-                    <span className="w-8 text-right text-[10px] text-slate-400">
-                      {value}
-                    </span>
-
-                    <div className="h-px flex-1 bg-slate-100" />
-                  </div>
-                ))}
-              </div>
-
-              {/* Bars */}
-              <div className="absolute bottom-0 left-11 right-0 top-0 flex items-end justify-between gap-3">
-                {revenueData.map((item, index) => (
-                  <div
-                    key={item.day}
-                    className="group flex h-full flex-1 flex-col justify-end"
-                  >
-                    <div className="relative flex h-[calc(100%-28px)] items-end justify-center">
-                      <div
-                        className={`relative w-full max-w-12 rounded-t-xl transition-all duration-300 ${
-                          index === revenueData.length - 1
-                            ? "bg-emerald-500"
-                            : "bg-slate-200 group-hover:bg-slate-300"
-                        }`}
-                        style={{
-                          height: `${item.value}%`,
-                        }}
-                      >
-                        <span className="absolute -top-7 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950 px-2 py-1 text-[10px] font-bold text-white group-hover:block">
-                          NPR {item.value}K
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-center text-[11px] font-semibold text-slate-400">
-                      {item.day}
-                    </p>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </Card>
 
-        {/* Live activity */}
+        {/* Activity */}
         <Card padding="none">
-          <div className="border-b border-slate-100 px-5 py-5">
+          <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-black text-slate-950">
-                    Live activity
-                  </h3>
-
-                  <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Live
-                  </span>
-                </div>
+                <h3 className="text-base font-black text-slate-950">
+                  Live activity
+                </h3>
 
                 <p className="mt-1 text-xs text-slate-400">
-                  Latest platform activity
+                  Real-time platform events.
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="text-xs font-bold text-slate-400 transition hover:text-slate-900"
-              >
-                •••
-              </button>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1.5 text-[10px] font-bold text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                Offline
+              </span>
             </div>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {orders.slice(0, 4).map((order, index) => (
-              <div
-                key={order.id}
-                className="flex gap-3 px-5 py-4"
-              >
-                <div className="relative">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-600">
-                    {index + 1}
-                  </div>
-
-                  {index < 3 && (
-                    <span className="absolute -bottom-4 left-1/2 h-4 w-px bg-slate-200" />
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">
-                        Order #{order.id}
-                      </p>
-
-                      <p className="mt-1 truncate text-[11px] text-slate-400">
-                        {order.restaurant} · {order.table}
-                      </p>
-                    </div>
-
-                    <p className="shrink-0 text-xs font-bold text-slate-800">
-                      {order.amount}
-                    </p>
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between">
-                    <Badge variant={statusStyles[order.status]}>
-                      {order.status}
-                    </Badge>
-
-                    <span className="text-[10px] font-medium text-slate-400">
-                      {order.time}
-                    </span>
-                  </div>
-                </div>
+          <div className="flex min-h-[320px] items-center justify-center px-6 py-10">
+            <div className="max-w-xs text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                <Radio size={22} strokeWidth={1.7} />
               </div>
-            ))}
+
+              <h4 className="mt-4 text-sm font-black text-slate-800">
+                No live activity
+              </h4>
+
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Live order events will appear here when the
+                Socket.IO real-time system is connected.
+              </p>
+            </div>
           </div>
 
           <div className="border-t border-slate-100 p-4">
@@ -529,190 +386,278 @@ function AdminDashboardPage() {
         </Card>
       </section>
 
-      {/* Restaurants + system health */}
-      <section className="grid gap-6 xl:grid-cols-[1.7fr_1fr]">
+      {/* =====================================================
+          RESTAURANTS / SYSTEM
+      ====================================================== */}
+      <section className="grid gap-6 xl:grid-cols-[1.65fr_1fr]">
         {/* Restaurants */}
         <Card padding="none">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
               <h3 className="text-base font-black text-slate-950">
-                Restaurant activity
+                Restaurants
               </h3>
 
               <p className="mt-1 text-xs text-slate-400">
-                Recently active restaurants on the platform
+                Live restaurant accounts from MongoDB.
               </p>
             </div>
 
-            <Link
-              to="/admin/restaurants"
-              className="text-xs font-bold text-emerald-600 transition hover:text-emerald-700"
-            >
-              View all
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void loadRestaurants()}
+                disabled={loadingRestaurants}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-slate-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Refresh restaurants"
+                title="Refresh restaurants"
+              >
+                <RefreshCw
+                  size={14}
+                  strokeWidth={1.8}
+                  className={
+                    loadingRestaurants
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+              </button>
+
+              <Link
+                to="/admin/restaurants"
+                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 transition hover:text-emerald-700"
+              >
+                View all
+                <ArrowUpRight
+                  size={13}
+                  strokeWidth={2}
+                />
+              </Link>
+            </div>
           </div>
 
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70">
-                  <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Restaurant
-                  </th>
+          {restaurantError && (
+            <div className="border-b border-red-100 bg-red-50 px-5 py-3 sm:px-6">
+              <p className="text-xs font-medium text-red-700">
+                {restaurantError}
+              </p>
+            </div>
+          )}
 
-                  <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Plan
-                  </th>
+          {loadingRestaurants ? (
+            <div className="flex min-h-[260px] items-center justify-center">
+              <div className="text-center">
+                <RefreshCw
+                  size={22}
+                  className="mx-auto animate-spin text-slate-300"
+                  strokeWidth={1.8}
+                />
 
-                  <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Orders
-                  </th>
+                <p className="mt-3 text-xs font-semibold text-slate-400">
+                  Loading restaurants...
+                </p>
+              </div>
+            </div>
+          ) : restaurants.length === 0 ? (
+            <div className="flex min-h-[260px] items-center justify-center px-6 py-10">
+              <div className="max-w-sm text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                  <Store size={23} strokeWidth={1.7} />
+                </div>
 
-                  <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Revenue
-                  </th>
+                <h4 className="mt-4 text-sm font-black text-slate-800">
+                  No restaurants yet
+                </h4>
 
-                  <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Status
-                  </th>
-                </tr>
-              </thead>
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Restaurants created through the platform will
+                  appear here automatically.
+                </p>
 
-              <tbody className="divide-y divide-slate-100">
+                <Link
+                  to="/admin/restaurants"
+                  className="mt-4 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white transition hover:bg-emerald-700"
+                >
+                  Manage restaurants
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/60">
+                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Restaurant
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Plan
+                      </th>
+
+                      <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Joined
+                      </th>
+
+                      <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Orders
+                      </th>
+
+                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {restaurants.map((restaurant) => (
+                      <tr
+                        key={restaurant._id}
+                        className="transition hover:bg-slate-50/60"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-black text-white">
+                              {getInitials(
+                                restaurant.name,
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-bold text-slate-800">
+                                {restaurant.name}
+                              </p>
+
+                              <p className="mt-1 truncate text-[10px] text-slate-400">
+                                {restaurant.address ||
+                                  "No address provided"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="text-xs font-semibold capitalize text-slate-600">
+                            {restaurant.plan}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="text-xs font-medium text-slate-500">
+                            {formatDate(
+                              restaurant.createdAt,
+                            )}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+                          <span className="text-xs font-medium text-slate-400">
+                            —
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <Badge
+                            variant={
+                              restaurant.status ===
+                              "active"
+                                ? "success"
+                                : restaurant.status ===
+                                    "pending"
+                                  ? "warning"
+                                  : "default"
+                            }
+                          >
+                            {restaurant.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile */}
+              <div className="divide-y divide-slate-100 md:hidden">
                 {restaurants.map((restaurant) => (
-                  <tr
-                    key={restaurant.name}
-                    className="transition hover:bg-slate-50/70"
+                  <div
+                    key={restaurant._id}
+                    className="p-4"
                   >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-[10px] font-black text-white">
-                          {restaurant.initials}
-                        </div>
-
-                        <div>
-                          <p className="text-xs font-bold text-slate-800">
-                            {restaurant.name}
-                          </p>
-
-                          <p className="mt-1 text-[10px] text-slate-400">
-                            {restaurant.location}
-                          </p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[10px] font-black text-white">
+                        {getInitials(restaurant.name)}
                       </div>
-                    </td>
 
-                    <td className="px-5 py-4">
-                      <span className="text-xs font-semibold text-slate-600">
-                        {restaurant.plan}
-                      </span>
-                    </td>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-slate-800">
+                          {restaurant.name}
+                        </p>
 
-                    <td className="px-5 py-4 text-right">
-                      <span className="text-xs font-bold text-slate-700">
-                        {restaurant.orders.toLocaleString("en-IN")}
-                      </span>
-                    </td>
+                        <p className="mt-1 truncate text-[10px] text-slate-400">
+                          {restaurant.address ||
+                            "No address provided"}
+                        </p>
+                      </div>
 
-                    <td className="px-5 py-4 text-right">
-                      <span className="text-xs font-bold text-slate-700">
-                        {restaurant.revenue}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-right">
                       <Badge
                         variant={
-                          restaurant.status === "Active"
+                          restaurant.status === "active"
                             ? "success"
-                            : "warning"
+                            : restaurant.status === "pending"
+                              ? "warning"
+                              : "default"
                         }
                       >
                         {restaurant.status}
                       </Badge>
-                    </td>
-                  </tr>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-slate-50 p-2.5">
+                        <p className="text-[9px] text-slate-400">
+                          Plan
+                        </p>
+
+                        <p className="mt-1 text-[10px] font-bold capitalize text-slate-700">
+                          {restaurant.plan}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg bg-slate-50 p-2.5">
+                        <p className="text-[9px] text-slate-400">
+                          Joined
+                        </p>
+
+                        <p className="mt-1 text-[10px] font-bold text-slate-700">
+                          {formatDate(
+                            restaurant.createdAt,
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg bg-slate-50 p-2.5">
+                        <p className="text-[9px] text-slate-400">
+                          Orders
+                        </p>
+
+                        <p className="mt-1 text-[10px] font-bold text-slate-400">
+                          —
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile */}
-          <div className="divide-y divide-slate-100 md:hidden">
-            {restaurants.map((restaurant) => (
-              <div
-                key={restaurant.name}
-                className="p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-[10px] font-black text-white">
-                    {restaurant.initials}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold text-slate-800">
-                      {restaurant.name}
-                    </p>
-
-                    <p className="mt-1 truncate text-[10px] text-slate-400">
-                      {restaurant.location}
-                    </p>
-                  </div>
-
-                  <Badge
-                    variant={
-                      restaurant.status === "Active"
-                        ? "success"
-                        : "warning"
-                    }
-                  >
-                    {restaurant.status}
-                  </Badge>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-lg bg-slate-50 p-2.5">
-                    <p className="text-[9px] text-slate-400">
-                      Plan
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-bold text-slate-700">
-                      {restaurant.plan}
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg bg-slate-50 p-2.5">
-                    <p className="text-[9px] text-slate-400">
-                      Orders
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-bold text-slate-700">
-                      {restaurant.orders}
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg bg-slate-50 p-2.5">
-                    <p className="text-[9px] text-slate-400">
-                      Revenue
-                    </p>
-
-                    <p className="mt-1 text-[10px] font-bold text-slate-700">
-                      {restaurant.revenue.replace(
-                        "NPR ",
-                        "",
-                      )}
-                    </p>
-                  </div>
-                </div>
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </Card>
 
         {/* System health */}
         <Card padding="none">
-          <div className="border-b border-slate-100 px-5 py-5">
+          <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-slate-950">
@@ -720,189 +665,239 @@ function AdminDashboardPage() {
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-400">
-                  Infrastructure status
+                  Current platform services.
                 </p>
               </div>
 
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Operational
+                Online
               </span>
             </div>
           </div>
 
-          <div className="space-y-3 p-5">
-            {[
-              {
-                name: "API Server",
-                detail: "42ms response time",
-                icon: "API",
-              },
-              {
-                name: "Database",
-                detail: "MongoDB cluster",
-                icon: "DB",
-              },
-              {
-                name: "Real-time",
-                detail: "Socket.IO service",
-                icon: "RT",
-              },
-              {
-                name: "QR Service",
-                detail: "QR generation service",
-                icon: "QR",
-              },
-            ].map((service) => (
-              <div
-                key={service.name}
-                className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[9px] font-black text-slate-600">
-                  {service.icon}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-800">
-                    {service.name}
-                  </p>
-
-                  <p className="mt-0.5 text-[10px] text-slate-400">
-                    {service.detail}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-
-                  <span className="text-[10px] font-bold text-emerald-600">
-                    Healthy
-                  </span>
-                </div>
+          <div className="space-y-2.5 p-5 sm:p-6">
+            <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Server size={15} strokeWidth={1.8} />
               </div>
-            ))}
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800">
+                  API Server
+                </p>
+
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  Application API
+                </p>
+              </div>
+
+              <span className="text-[10px] font-bold text-emerald-600">
+                Connected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Database size={15} strokeWidth={1.8} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800">
+                  Database
+                </p>
+
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  MongoDB
+                </p>
+              </div>
+
+              <span className="text-[10px] font-bold text-emerald-600">
+                Connected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                <Radio size={15} strokeWidth={1.8} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800">
+                  Real-time
+                </p>
+
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  Socket.IO
+                </p>
+              </div>
+
+              <span className="text-[10px] font-bold text-slate-400">
+                Pending
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                <QrCode size={15} strokeWidth={1.8} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800">
+                  QR Service
+                </p>
+
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  QR generation
+                </p>
+              </div>
+
+              <span className="text-[10px] font-bold text-slate-400">
+                Pending
+              </span>
+            </div>
           </div>
 
-          <div className="mx-5 mb-5 rounded-xl bg-slate-950 p-4 text-white">
-            <p className="text-xs font-bold">
-              Platform uptime
+          <div className="mx-5 mb-5 rounded-xl bg-slate-950 p-5 text-white sm:mx-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold">
+                Platform environment
+              </p>
+
+              <span className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-300">
+                Development
+              </span>
+            </div>
+
+            <p className="mt-3 text-sm font-bold">
+              Free infrastructure
             </p>
 
-            <div className="mt-3 flex items-end justify-between">
-              <p className="text-2xl font-black">
-                99.98%
-              </p>
-
-              <p className="text-[10px] font-medium text-slate-400">
-                Last 30 days
-              </p>
-            </div>
-
-            <div className="mt-3 flex gap-1">
-              {Array.from({ length: 30 }).map((_, index) => (
-                <span
-                  key={index}
-                  className="h-5 flex-1 rounded-sm bg-emerald-500/80"
-                />
-              ))}
-            </div>
+            <p className="mt-1 text-[10px] leading-4 text-slate-400">
+              Production monitoring and uptime tracking will
+              be added before deployment.
+            </p>
           </div>
         </Card>
       </section>
 
-      {/* Bottom actions */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link
-          to="/admin/restaurants"
-          className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-white">
-              R
+      {/* =====================================================
+          QUICK ACTIONS
+      ====================================================== */}
+      <section>
+        <div className="mb-4">
+          <h3 className="text-base font-black text-slate-950">
+            Quick actions
+          </h3>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Jump directly into platform management.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            to="/admin/restaurants"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Store size={17} strokeWidth={1.8} />
+              </div>
+
+              <ArrowUpRight
+                size={16}
+                className="text-slate-300 transition group-hover:text-emerald-600"
+                strokeWidth={1.8}
+              />
             </div>
 
-            <span className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-600">
-              →
-            </span>
-          </div>
+            <p className="mt-4 text-sm font-black text-slate-900">
+              Manage restaurants
+            </p>
 
-          <p className="mt-4 text-sm font-black text-slate-900">
-            Manage restaurants
-          </p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Accounts, plans and restaurant status.
+            </p>
+          </Link>
 
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Accounts, plans and restaurant status.
-          </p>
-        </Link>
+          <Link
+            to="/admin/users"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                <Users size={17} strokeWidth={1.8} />
+              </div>
 
-        <Link
-          to="/admin/users"
-          className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-700">
-              U
+              <ArrowUpRight
+                size={16}
+                className="text-slate-300 transition group-hover:text-emerald-600"
+                strokeWidth={1.8}
+              />
             </div>
 
-            <span className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-600">
-              →
-            </span>
-          </div>
+            <p className="mt-4 text-sm font-black text-slate-900">
+              Manage users
+            </p>
 
-          <p className="mt-4 text-sm font-black text-slate-900">
-            Manage users
-          </p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Owners, staff and platform administrators.
+            </p>
+          </Link>
 
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Owners, staff and platform administrators.
-          </p>
-        </Link>
+          <Link
+            to="/admin/subscriptions"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                <span className="text-sm font-black">
+                  ₨
+                </span>
+              </div>
 
-        <Link
-          to="/admin/subscriptions"
-          className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-700">
-              $
+              <ArrowUpRight
+                size={16}
+                className="text-slate-300 transition group-hover:text-emerald-600"
+                strokeWidth={1.8}
+              />
             </div>
 
-            <span className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-600">
-              →
-            </span>
-          </div>
+            <p className="mt-4 text-sm font-black text-slate-900">
+              Subscriptions
+            </p>
 
-          <p className="mt-4 text-sm font-black text-slate-900">
-            Subscriptions
-          </p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Plans, renewals and subscription status.
+            </p>
+          </Link>
 
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Plans, renewals and subscription status.
-          </p>
-        </Link>
+          <Link
+            to="/admin/settings"
+            className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                <Settings size={17} strokeWidth={1.8} />
+              </div>
 
-        <Link
-          to="/admin/settings"
-          className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xs font-black text-slate-700">
-              ⚙
+              <ArrowUpRight
+                size={16}
+                className="text-slate-300 transition group-hover:text-emerald-600"
+                strokeWidth={1.8}
+              />
             </div>
 
-            <span className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-600">
-              →
-            </span>
-          </div>
+            <p className="mt-4 text-sm font-black text-slate-900">
+              Platform settings
+            </p>
 
-          <p className="mt-4 text-sm font-black text-slate-900">
-            Platform settings
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Global configuration and system controls.
-          </p>
-        </Link>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Global configuration and system controls.
+            </p>
+          </Link>
+        </div>
       </section>
     </div>
   );
