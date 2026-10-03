@@ -23,7 +23,7 @@ export interface Restaurant {
   status: "active" | "pending" | "suspended";
   plan: "starter" | "professional" | "custom";
 
-  ownerId?: RestaurantOwner;
+  ownerId?: RestaurantOwner | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +32,13 @@ interface RestaurantsResponse {
   success: boolean;
   data: {
     restaurants: Restaurant[];
+  };
+}
+
+interface RestaurantResponse {
+  success: boolean;
+  data: {
+    restaurant: Restaurant;
   };
 }
 
@@ -53,4 +60,26 @@ export const getAllRestaurants = async (): Promise<Restaurant[]> => {
   );
 
   return response.data.restaurants;
+};
+
+export const getRestaurantById = async (
+  restaurantId: string,
+): Promise<Restaurant> => {
+  const token = localStorage.getItem("adminToken");
+
+  if (!token) {
+    throw new Error("Admin authentication required");
+  }
+
+  const response = await apiRequest<RestaurantResponse>(
+    `/restaurants/admin/${restaurantId}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  return response.data.restaurant;
 };

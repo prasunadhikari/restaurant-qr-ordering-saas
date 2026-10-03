@@ -319,3 +319,186 @@ export const getAllRestaurants = async (
     });
   }
 };
+
+/*
+|--------------------------------------------------------------------------
+| GET SINGLE RESTAURANT — PLATFORM ADMIN
+|--------------------------------------------------------------------------
+*/
+
+export const getRestaurantById = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if (req.user.role !== "platform_admin") {
+      res.status(403).json({
+        success: false,
+        message: "Platform administrator access required",
+      });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const restaurant = await Restaurant.findById(id).populate(
+      "ownerId",
+      "name email",
+    );
+
+    if (!restaurant) {
+      res.status(404).json({
+        success: false,
+        message: "Restaurant not found",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        restaurant,
+      },
+    });
+  } catch (error) {
+    console.error("Get restaurant by ID error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch restaurant",
+    });
+  }
+};
+
+// Update restaurant information from the admin panel
+export const updateRestaurantAsAdmin = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if (req.user.role !== "platform_admin") {
+      res.status(403).json({
+        success: false,
+        message: "Platform administrator access required",
+      });
+      return;
+    }
+
+    const { id } = req.params;
+
+    const restaurant = await Restaurant.findById(id);
+
+    if (!restaurant) {
+      res.status(404).json({
+        success: false,
+        message: "Restaurant not found",
+      });
+      return;
+    }
+
+    const {
+      name,
+      slug,
+      logo,
+      coverImage,
+      phone,
+      address,
+      openingHours,
+      plan,
+      status,
+    } = req.body;
+
+    if (!name || !slug) {
+      res.status(400).json({
+        success: false,
+        message: "Restaurant name and slug are required",
+      });
+      return;
+    }
+
+    const normalizedSlug = slug
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
+    const existingRestaurant = await Restaurant.findOne({
+      slug: normalizedSlug,
+      _id: { $ne: restaurant._id },
+    });
+
+    if (existingRestaurant) {
+      res.status(409).json({
+        success: false,
+        message: "This restaurant slug is already in use",
+      });
+      return;
+    }
+
+    restaurant.name = name.trim();
+    restaurant.slug = normalizedSlug;
+    restaurant.logo = logo?.trim() || "";
+    restaurant.coverImage = coverImage?.trim() || "";
+    restaurant.phone = phone?.trim() || "";
+    restaurant.address = address?.trim() || "";
+
+    if (openingHours) {
+      restaurant.openingHours = {
+        open: openingHours.open || "09:00",
+        close: openingHours.close || "22:00",
+      };
+    }
+
+    if (
+      plan === "starter" ||
+      plan === "professional" ||
+      plan === "custom"
+    ) {
+      restaurant.plan = plan;
+    }
+
+    if (
+      status === "active" ||
+      status === "pending" ||
+      status === "suspended"
+    ) {
+      restaurant.status = status;
+    }
+
+    await restaurant.save();
+
+    const updatedRestaurant = await Restaurant.findById(
+      restaurant._id,
+    ).populate("ownerId", "name email");
+
+    res.status(200).json({
+      success: true,
+      message: "Restaurant updated successfully",
+      data: {
+        restaurant: updatedRestaurant,
+      },
+    });
+  } catch (error) {
+    console.error("Admin update restaurant error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update restaurant",
+    });
+  }
+};

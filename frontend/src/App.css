@@ -1,5 +1,221 @@
-/*
- * Page-specific styles will be added here when needed.
- *
- * Global styles belong in index.css.
- */
+.home-page {
+  --home-ink: #191815;
+  --home-gold: #d7bd8c;
+  overflow: hidden;
+}
+
+.home-nav {
+  animation: home-nav-enter 900ms 100ms both cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.home-nav > div {
+  background: linear-gradient(180deg, rgb(12 12 10 / 28%), transparent);
+}
+
+.home-nav a {
+  color: rgb(255 255 255 / 75%);
+  transition:
+    color 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease;
+}
+
+.home-nav > div > a:last-child {
+  color: #fff;
+}
+
+.home-nav nav a:hover,
+.home-nav > div > a:last-child:hover {
+  color: var(--home-ink);
+}
+
+.home-nav nav a:hover {
+  color: #fff;
+}
+
+.home-hero-content a {
+  color: #fff;
+}
+
+.home-hero-image,
+.home-statement-image {
+  will-change: transform;
+}
+
+.home-hero-image {
+  animation: home-image-drift 22s ease-in-out infinite alternate;
+}
+
+.home-statement-image {
+  transform: scale(1.02);
+  transition: transform 1.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+#experience:hover .home-statement-image {
+  transform: scale(1.07);
+}
+
+.home-hero-content > div > p,
+.home-hero-content h1,
+.home-hero-content > div > div {
+  animation: home-hero-enter 900ms both cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.home-hero-content > div > p {
+  animation-delay: 180ms;
+}
+
+.home-hero-content h1 {
+  animation-delay: 320ms;
+}
+
+.home-hero-content > div > div {
+  animation-delay: 480ms;
+}
+
+.home-hero-content a > span,
+.home-access-card,
+.home-platform-item > div,
+.home-editorial-image img {
+  transition:
+    transform 500ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-color 300ms ease,
+    background-color 300ms ease,
+    color 300ms ease;
+}
+
+.home-hero-content a:hover > span {
+  color: var(--home-ink);
+  transform: translateY(3px);
+}
+
+.home-editorial-image img {
+  transition:
+    transform 900ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 600ms ease;
+}
+
+.home-editorial-image:hover img {
+  transform: scale(1.055);
+  filter: grayscale(0);
+}
+
+.home-page [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 750ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 750ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.home-page [data-reveal].is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.home-page .home-platform-item:nth-child(2),
+.home-page .home-step:nth-child(2),
+.home-page .home-access-card:nth-child(2) {
+  transition-delay: 100ms;
+}
+
+.home-page .home-platform-item:nth-child(3),
+.home-page .home-step:nth-child(3),
+.home-page .home-access-card:nth-child(3) {
+  transition-delay: 180ms;
+}
+
+.home-page .home-platform-item:nth-child(4) {
+  transition-delay: 260ms;
+}
+
+.home-platform-item > div {
+  transition:
+    transform 350ms ease,
+    border-color 300ms ease;
+}
+
+.home-platform-item:hover > div {
+  transform: rotate(-5deg) scale(1.06);
+}
+
+.home-page .home-access-card {
+  transition:
+    opacity 750ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 750ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    background-color 450ms ease,
+    color 450ms ease;
+}
+
+.home-access-card:hover {
+  color: #fff;
+  transform: translateY(-5px);
+}
+
+.home-final-link {
+  color: #fff;
+  transition:
+    color 300ms ease,
+    background-color 300ms ease,
+    border-color 300ms ease;
+}
+
+.home-final-link:hover {
+  color: var(--home-ink);
+}
+
+.home-page a:focus-visible {
+  outline: 2px solid var(--home-gold);
+  outline-offset: 5px;
+}
+
+@keyframes home-nav-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-image-drift {
+  from {
+    transform: scale(1.02);
+  }
+
+  to {
+    transform: scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-page *,
+  .home-page *::before,
+  .home-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .home-page [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}

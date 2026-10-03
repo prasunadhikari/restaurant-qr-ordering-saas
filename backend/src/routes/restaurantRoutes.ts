@@ -5,35 +5,27 @@ import {
   createRestaurantAsAdmin,
   getMyRestaurant,
   getAllRestaurants,
+  getRestaurantById,
+  updateRestaurantAsAdmin,
 } from "../controllers/restaurantController.js";
+
+import {
+  assignRestaurantOwner,
+} from "../controllers/userController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
 
 const router = Router();
 
-/*
-|--------------------------------------------------------------------------
-| RESTAURANT OWNER
-|--------------------------------------------------------------------------
-*/
-
+// Restaurant owner creates their restaurant
 router.post(
   "/",
   authMiddleware,
   createRestaurant,
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| PLATFORM ADMIN
-|--------------------------------------------------------------------------
-|
-| Admin Dashboard → Add Restaurant
-|
-*/
-
+// Platform admin creates a restaurant
 router.post(
   "/admin",
   authMiddleware,
@@ -41,26 +33,14 @@ router.post(
   createRestaurantAsAdmin,
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| CURRENT USER RESTAURANT
-|--------------------------------------------------------------------------
-*/
-
+// Get the restaurant belonging to the logged-in user
 router.get(
   "/me",
   authMiddleware,
   getMyRestaurant,
 );
 
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN — ALL RESTAURANTS
-|--------------------------------------------------------------------------
-*/
-
+// Get all restaurants for the admin dashboard
 router.get(
   "/admin/all",
   authMiddleware,
@@ -68,5 +48,28 @@ router.get(
   getAllRestaurants,
 );
 
+// Get one restaurant for the admin management page
+router.get(
+  "/admin/:id",
+  authMiddleware,
+  adminMiddleware,
+  getRestaurantById,
+);
+
+// Update restaurant information from the admin panel
+router.put(
+  "/admin/:id",
+  authMiddleware,
+  adminMiddleware,
+  updateRestaurantAsAdmin,
+);
+
+// Assign an owner to a restaurant
+router.put(
+  "/admin/:id/owner",
+  authMiddleware,
+  adminMiddleware,
+  assignRestaurantOwner,
+);
 
 export default router;

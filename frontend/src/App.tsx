@@ -20,6 +20,7 @@ import SettingsPage from "./pages/restaurant/SettingsPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import RestaurantsPage from "./pages/admin/RestaurantsPage";
+import RestaurantManagePage from "./pages/admin/RestaurantManagePage";
 
 function App() {
   return (
@@ -93,6 +94,11 @@ function App() {
               path="/admin/restaurants"
               element={<RestaurantsPage />}
             />
+
+            <Route
+              path="/admin/restaurants/:id"
+              element={<RestaurantManagePage />}
+              />
           </Route>
         </Route>
       </Routes>
