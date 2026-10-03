@@ -21,6 +21,7 @@ import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import RestaurantsPage from "./pages/admin/RestaurantsPage";
 import RestaurantManagePage from "./pages/admin/RestaurantManagePage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 
 function App() {
   return (
@@ -98,7 +99,12 @@ function App() {
             <Route
               path="/admin/restaurants/:id"
               element={<RestaurantManagePage />}
-              />
+            />
+
+            <Route
+              path="/admin/settings"
+              element={<AdminSettingsPage />}
+            />
           </Route>
         </Route>
       </Routes>

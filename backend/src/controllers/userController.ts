@@ -1,28 +1,24 @@
-import { Response } from "express";
+import bcrypt from "bcryptjs";
+import { Request, Response } from "express";
 
 import User from "../models/User.js";
 import Restaurant from "../models/Restaurant.js";
 
-import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+type AuthenticatedRequest = Request & {
+  user?: {
+    role?: string;
+  };
+};
 
-// Get restaurant owner accounts for the admin panel
 export const getRestaurantOwners = async (
   req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
-      return;
-    }
-
-    if (req.user.role !== "platform_admin") {
+    if (req.user?.role !== "platform_admin") {
       res.status(403).json({
         success: false,
-        message: "Platform administrator access required",
+        message: "Platform admin access required",
       });
       return;
     }
@@ -30,44 +26,32 @@ export const getRestaurantOwners = async (
     const owners = await User.find({
       role: "restaurant_owner",
     })
-      .select("_id name email restaurantId")
-      .populate("restaurantId", "name slug")
-      .sort({ createdAt: -1 });
+      .select("-password")
+      .populate("restaurantId", "name slug");
 
     res.status(200).json({
       success: true,
-      data: {
-        owners,
-      },
+      owners,
     });
   } catch (error) {
     console.error("Get restaurant owners error:", error);
 
     res.status(500).json({
       success: false,
-      message: "Failed to fetch restaurant owners",
+      message: "Failed to load restaurant owners",
     });
   }
 };
 
-// Assign an existing owner to a restaurant
 export const assignRestaurantOwner = async (
   req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
-      return;
-    }
-
-    if (req.user.role !== "platform_admin") {
+    if (req.user?.role !== "platform_admin") {
       res.status(403).json({
         success: false,
-        message: "Platform administrator access required",
+        message: "Platform admin access required",
       });
       return;
     }
@@ -93,12 +77,9 @@ export const assignRestaurantOwner = async (
       return;
     }
 
-    const owner = await User.findOne({
-      _id: ownerId,
-      role: "restaurant_owner",
-    });
+    const owner = await User.findById(ownerId);
 
-    if (!owner) {
+    if (!owner || owner.role !== "restaurant_owner") {
       res.status(404).json({
         success: false,
         message: "Restaurant owner not found",
@@ -110,7 +91,7 @@ export const assignRestaurantOwner = async (
       owner.restaurantId &&
       owner.restaurantId.toString() !== restaurant._id.toString()
     ) {
-      res.status(409).json({
+      res.status(400).json({
         success: false,
         message: "This owner is already assigned to another restaurant",
       });
@@ -118,11 +99,15 @@ export const assignRestaurantOwner = async (
     }
 
     if (restaurant.ownerId) {
-      await User.findByIdAndUpdate(restaurant.ownerId, {
-        $unset: {
-          restaurantId: "",
-        },
-      });
+      const previousOwner = await User.findById(restaurant.ownerId);
+
+      if (
+        previousOwner &&
+        previousOwner._id.toString() !== owner._id.toString()
+      ) {
+        previousOwner.restaurantId = undefined;
+        await previousOwner.save();
+      }
     }
 
     restaurant.ownerId = owner._id;
@@ -131,16 +116,13 @@ export const assignRestaurantOwner = async (
     owner.restaurantId = restaurant._id;
     await owner.save();
 
-    const updatedRestaurant = await Restaurant.findById(
-      restaurant._id,
-    ).populate("ownerId", "name email");
+    const updatedRestaurant = await Restaurant.findById(restaurant._id)
+      .populate("ownerId", "name email");
 
     res.status(200).json({
       success: true,
       message: "Restaurant owner assigned successfully",
-      data: {
-        restaurant: updatedRestaurant,
-      },
+      restaurant: updatedRestaurant,
     });
   } catch (error) {
     console.error("Assign restaurant owner error:", error);
@@ -152,35 +134,30 @@ export const assignRestaurantOwner = async (
   }
 };
 
-// Create a restaurant owner and connect them to a restaurant
 export const createRestaurantOwner = async (
   req: AuthenticatedRequest,
   res: Response,
 ): Promise<void> => {
   try {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
-      return;
-    }
-
-    if (req.user.role !== "platform_admin") {
+    if (req.user?.role !== "platform_admin") {
       res.status(403).json({
         success: false,
-        message: "Platform administrator access required",
+        message: "Platform admin access required",
       });
       return;
     }
 
-    const { id } = req.params;
-    const { name, email, password } = req.body;
+    const {
+      name,
+      email,
+      password,
+      restaurantId,
+    } = req.body;
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !restaurantId) {
       res.status(400).json({
         success: false,
-        message: "Name, email and password are required",
+        message: "Name, email, password, and restaurant are required",
       });
       return;
     }
@@ -193,7 +170,7 @@ export const createRestaurantOwner = async (
       return;
     }
 
-    const restaurant = await Restaurant.findById(id);
+    const restaurant = await Restaurant.findById(restaurantId);
 
     if (!restaurant) {
       res.status(404).json({
@@ -204,7 +181,7 @@ export const createRestaurantOwner = async (
     }
 
     if (restaurant.ownerId) {
-      res.status(409).json({
+      res.status(400).json({
         success: false,
         message: "This restaurant already has an owner",
       });
@@ -218,14 +195,12 @@ export const createRestaurantOwner = async (
     });
 
     if (existingUser) {
-      res.status(409).json({
+      res.status(400).json({
         success: false,
-        message: "An account with this email already exists",
+        message: "A user with this email already exists",
       });
       return;
     }
-
-    const bcrypt = await import("bcryptjs");
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -240,21 +215,12 @@ export const createRestaurantOwner = async (
     restaurant.ownerId = owner._id;
     await restaurant.save();
 
-    const updatedRestaurant = await Restaurant.findById(
-      restaurant._id,
-    ).populate("ownerId", "name email");
+    const ownerResponse = await User.findById(owner._id).select("-password");
 
     res.status(201).json({
       success: true,
       message: "Restaurant owner created successfully",
-      data: {
-        restaurant: updatedRestaurant,
-        owner: {
-          _id: owner._id,
-          name: owner.name,
-          email: owner.email,
-        },
-      },
+      owner: ownerResponse,
     });
   } catch (error) {
     console.error("Create restaurant owner error:", error);
@@ -262,6 +228,89 @@ export const createRestaurantOwner = async (
     res.status(500).json({
       success: false,
       message: "Failed to create restaurant owner",
+    });
+  }
+};
+
+export const updateRestaurantOwner = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (req.user?.role !== "platform_admin") {
+      res.status(403).json({
+        success: false,
+        message: "Platform admin access required",
+      });
+      return;
+    }
+
+    const { ownerId } = req.params;
+    const { name, email, password } = req.body;
+
+    if (!name?.trim() || !email?.trim()) {
+      res.status(400).json({
+        success: false,
+        message: "Name and email are required",
+      });
+      return;
+    }
+
+    if (password !== undefined && password !== "" && password.length < 6) {
+      res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+      return;
+    }
+
+    const owner = await User.findById(ownerId);
+
+    if (!owner || owner.role !== "restaurant_owner") {
+      res.status(404).json({
+        success: false,
+        message: "Restaurant owner not found",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: owner._id },
+    });
+
+    if (existingUser) {
+      res.status(400).json({
+        success: false,
+        message: "Another user already uses this email address",
+      });
+      return;
+    }
+
+    owner.name = name.trim();
+    owner.email = normalizedEmail;
+
+    if (password && password.trim()) {
+      owner.password = await bcrypt.hash(password, 10);
+    }
+
+    await owner.save();
+
+    const ownerResponse = await User.findById(owner._id).select("-password");
+
+    res.status(200).json({
+      success: true,
+      message: "Restaurant owner updated successfully",
+      owner: ownerResponse,
+    });
+  } catch (error) {
+    console.error("Update restaurant owner error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to update restaurant owner",
     });
   }
 };

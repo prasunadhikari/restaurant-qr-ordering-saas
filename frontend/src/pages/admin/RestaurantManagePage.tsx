@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Clock3,
   Edit3,
+  Eye,
+  EyeOff,
   Image,
   Mail,
   MapPin,
@@ -57,6 +59,13 @@ interface RestaurantForm {
   status: "active" | "pending" | "suspended";
 }
 
+interface EditOwnerForm {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
 function RestaurantManagePage() {
   const { id } = useParams<{ id: string }>();
 
@@ -68,21 +77,35 @@ function RestaurantManagePage() {
   const [assigning, setAssigning] = useState(false);
   const [creatingOwner, setCreatingOwner] = useState(false);
   const [savingRestaurant, setSavingRestaurant] = useState(false);
+  const [savingOwner, setSavingOwner] = useState(false);
 
   const [error, setError] = useState("");
   const [ownerError, setOwnerError] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [editOwnerError, setEditOwnerError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [showOwnerModal, setShowOwnerModal] = useState(false);
   const [showCreateOwner, setShowCreateOwner] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditOwnerModal, setShowEditOwnerModal] = useState(false);
+  const [showNewOwnerPassword, setShowNewOwnerPassword] = useState(false);
+  const [showConfirmOwnerPassword, setShowConfirmOwnerPassword] =
+    useState(false);
 
   const [ownerForm, setOwnerForm] = useState({
     name: "",
     email: "",
     password: "",
   });
+
+  const [editOwnerForm, setEditOwnerForm] =
+    useState<EditOwnerForm>({
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
 
   const [restaurantForm, setRestaurantForm] =
     useState<RestaurantForm>({
@@ -148,7 +171,7 @@ function RestaurantManagePage() {
       }
 
       const response = await apiRequest<OwnersResponse>(
-        "/users/admin/restaurant-owners",
+        "/users/restaurant-owners",
         {
           method: "GET",
           headers: {
@@ -206,6 +229,26 @@ function RestaurantManagePage() {
     setShowEditModal(true);
   };
 
+  const openEditOwnerModal = () => {
+    if (!restaurant?.ownerId) {
+      return;
+    }
+
+    setEditOwnerError("");
+    setSuccess("");
+
+    setEditOwnerForm({
+      name: restaurant.ownerId.name,
+      email: restaurant.ownerId.email,
+      password: "",
+      confirmPassword: "",
+    });
+
+    setShowNewOwnerPassword(false);
+    setShowConfirmOwnerPassword(false);
+    setShowEditOwnerModal(true);
+  };
+
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
@@ -228,7 +271,7 @@ function RestaurantManagePage() {
   };
 
   const handleSaveRestaurant = async (
-    event: React.FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
 
@@ -283,6 +326,92 @@ function RestaurantManagePage() {
     }
   };
 
+  const handleSaveOwner = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!restaurant?.ownerId) {
+      return;
+    }
+
+    const name = editOwnerForm.name.trim();
+    const email = editOwnerForm.email.trim().toLowerCase();
+    const password = editOwnerForm.password;
+
+    if (!name) {
+      setEditOwnerError("Owner name is required.");
+      return;
+    }
+
+    if (!email) {
+      setEditOwnerError("Owner email is required.");
+      return;
+    }
+
+    if (password && password.length < 6) {
+      setEditOwnerError(
+        "New password must be at least 6 characters.",
+      );
+      return;
+    }
+
+    if (password !== editOwnerForm.confirmPassword) {
+      setEditOwnerError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setSavingOwner(true);
+      setEditOwnerError("");
+      setSuccess("");
+
+      const token = localStorage.getItem("adminToken");
+
+      if (!token) {
+        throw new Error("Admin authentication required");
+      }
+
+      await apiRequest(
+        `/users/restaurant-owners/${restaurant.ownerId._id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+          }),
+        },
+      );
+
+      await loadRestaurant();
+
+      setShowEditOwnerModal(false);
+
+      setEditOwnerForm({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+
+      setSuccess(
+        "Restaurant owner information updated successfully.",
+      );
+    } catch (err) {
+      setEditOwnerError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update restaurant owner",
+      );
+    } finally {
+      setSavingOwner(false);
+    }
+  };
+
   const handleAssignOwner = async (ownerId: string) => {
     if (!id) {
       return;
@@ -325,7 +454,7 @@ function RestaurantManagePage() {
   };
 
   const handleCreateOwner = async (
-    event: React.FormEvent<HTMLFormElement>,
+    event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
 
@@ -386,6 +515,7 @@ function RestaurantManagePage() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
+
           <p className="text-sm text-slate-500">
             Loading restaurant...
           </p>
@@ -602,31 +732,56 @@ function RestaurantManagePage() {
               </div>
             </div>
 
-            <Button
-              type="button"
-              onClick={openOwnerModal}
-            >
-              <UserPlus className="h-4 w-4" />
-              {restaurant.ownerId
-                ? "Change Owner"
-                : "Manage Owner"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {restaurant.ownerId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openEditOwnerModal}
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit Owner
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                onClick={openOwnerModal}
+              >
+                <UserPlus className="h-4 w-4" />
+                {restaurant.ownerId
+                  ? "Change Owner"
+                  : "Manage Owner"}
+              </Button>
+            </div>
           </div>
 
           <div className="mt-6">
             {restaurant.ownerId ? (
-              <div className="grid gap-5 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2">
-                <InfoItem
-                  icon={<Users className="h-4 w-4" />}
-                  label="Owner Name"
-                  value={restaurant.ownerId.name}
-                />
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <InfoItem
+                    icon={<Users className="h-4 w-4" />}
+                    label="Owner Name"
+                    value={restaurant.ownerId.name}
+                  />
 
-                <InfoItem
-                  icon={<Mail className="h-4 w-4" />}
-                  label="Email"
-                  value={restaurant.ownerId.email}
-                />
+                  <InfoItem
+                    icon={<Mail className="h-4 w-4" />}
+                    label="Email"
+                    value={restaurant.ownerId.email}
+                  />
+                </div>
+
+                <div className="mt-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+
+                  <p className="text-sm leading-6 text-blue-700">
+                    You can update the owner's name and email or
+                    set a new password. The current password is
+                    never displayed.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
@@ -956,6 +1111,232 @@ function RestaurantManagePage() {
         </div>
       )}
 
+      {/* Edit owner modal */}
+      {showEditOwnerModal && restaurant.ownerId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Edit Restaurant Owner
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Update the owner account for {restaurant.name}.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEditOwnerModal(false)}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSaveOwner}
+              className="max-h-[75vh] overflow-y-auto"
+            >
+              <div className="space-y-5 p-6">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <Users className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+
+                    <div>
+                      <p className="font-semibold text-blue-900">
+                        Owner Account
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-blue-700">
+                        Change the owner's name or email, or set a
+                        new password. The existing password cannot
+                        be viewed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {editOwnerError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+
+                      <p className="text-sm leading-6 text-red-700">
+                        {editOwnerError}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Owner Name
+                  </label>
+
+                  <input
+                    type="text"
+                    required
+                    value={editOwnerForm.name}
+                    onChange={(event) =>
+                      setEditOwnerForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Ram Sharma"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Email Address
+                  </label>
+
+                  <input
+                    type="email"
+                    required
+                    value={editOwnerForm.email}
+                    onChange={(event) =>
+                      setEditOwnerForm((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                    placeholder="owner@example.com"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    New Password
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type={
+                        showNewOwnerPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={editOwnerForm.password}
+                      onChange={(event) =>
+                        setEditOwnerForm((current) => ({
+                          ...current,
+                          password: event.target.value,
+                        }))
+                      }
+                      placeholder="Leave blank to keep current password"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowNewOwnerPassword(
+                          (current) => !current,
+                        )
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      aria-label={
+                        showNewOwnerPassword
+                          ? "Hide new password"
+                          : "Show new password"
+                      }
+                    >
+                      {showNewOwnerPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Leave this blank if you only want to change the
+                    name or email. If provided, the password must
+                    contain at least 6 characters.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Confirm New Password
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type={
+                        showConfirmOwnerPassword
+                          ? "text"
+                          : "password"
+                      }
+                      value={editOwnerForm.confirmPassword}
+                      onChange={(event) =>
+                        setEditOwnerForm((current) => ({
+                          ...current,
+                          confirmPassword: event.target.value,
+                        }))
+                      }
+                      placeholder="Repeat the new password"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmOwnerPassword(
+                          (current) => !current,
+                        )
+                      }
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      aria-label={
+                        showConfirmOwnerPassword
+                          ? "Hide password confirmation"
+                          : "Show password confirmation"
+                      }
+                    >
+                      {showConfirmOwnerPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={savingOwner}
+                  onClick={() =>
+                    setShowEditOwnerModal(false)
+                  }
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={savingOwner}
+                >
+                  <Save className="h-4 w-4" />
+                  {savingOwner
+                    ? "Saving..."
+                    : "Save Owner Changes"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Owner modal */}
       {showOwnerModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
@@ -1248,7 +1629,7 @@ interface FormFieldProps {
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
 }
 
 function FormField({
@@ -1288,7 +1669,7 @@ function FormField({
 }
 
 interface InfoItemProps {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }
