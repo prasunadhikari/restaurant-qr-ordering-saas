@@ -16,7 +16,7 @@ export interface IRestaurant extends Document {
   status: "active" | "pending" | "suspended";
   plan: "starter" | "professional" | "custom";
 
-  ownerId?: mongoose.Types.ObjectId;
+  ownerId?: mongoose.Types.ObjectId | null;
 
   createdAt: Date;
   updatedAt: Date;

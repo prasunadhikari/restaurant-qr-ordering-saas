@@ -11,6 +11,7 @@ import {
   Settings,
   Store,
   Users,
+  X,
 } from "lucide-react";
 
 import Badge from "../../components/ui/Badge";
@@ -19,17 +20,52 @@ import {
   getAllRestaurants,
   type Restaurant,
 } from "../../services/restaurantService";
+import { apiRequest } from "../../services/api";
+
+interface CreateRestaurantForm {
+  name: string;
+  slug: string;
+  phone: string;
+  address: string;
+  plan: "starter" | "professional" | "custom";
+  openingHours: {
+    open: string;
+    close: string;
+  };
+}
 
 function AdminDashboardPage() {
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(
-    [],
-  );
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
 
   const [loadingRestaurants, setLoadingRestaurants] =
     useState(true);
 
   const [restaurantError, setRestaurantError] =
     useState("");
+
+  const [showAddRestaurant, setShowAddRestaurant] =
+    useState(false);
+
+  const [creatingRestaurant, setCreatingRestaurant] =
+    useState(false);
+
+  const [createError, setCreateError] = useState("");
+
+  const [createSuccess, setCreateSuccess] =
+    useState("");
+
+  const [form, setForm] =
+    useState<CreateRestaurantForm>({
+      name: "",
+      slug: "",
+      phone: "",
+      address: "",
+      plan: "starter",
+      openingHours: {
+        open: "09:00",
+        close: "22:00",
+      },
+    });
 
   const loadRestaurants = async () => {
     try {
@@ -88,6 +124,130 @@ function AdminDashboardPage() {
       .join("");
   };
 
+  const generateSlug = (value: string) => {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  };
+
+  const handleRestaurantNameChange = (
+    value: string,
+  ) => {
+    setForm((current) => ({
+      ...current,
+      name: value,
+      slug: generateSlug(value),
+    }));
+  };
+
+  const handleCreateRestaurant = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    setCreateError("");
+    setCreateSuccess("");
+
+    if (!form.name.trim()) {
+      setCreateError("Restaurant name is required.");
+      return;
+    }
+
+    if (!form.slug.trim()) {
+      setCreateError("Restaurant slug is required.");
+      return;
+    }
+
+    try {
+      setCreatingRestaurant(true);
+
+      const adminToken =
+        localStorage.getItem("adminToken");
+
+      if (!adminToken) {
+        throw new Error(
+          "Admin session expired. Please log in again.",
+        );
+      }
+
+      await apiRequest("/restaurants/admin", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          plan: form.plan,
+          openingHours: form.openingHours,
+        }),
+      });
+
+      setCreateSuccess(
+        "Restaurant created successfully.",
+      );
+
+      setForm({
+        name: "",
+        slug: "",
+        phone: "",
+        address: "",
+        plan: "starter",
+        openingHours: {
+          open: "09:00",
+          close: "22:00",
+        },
+      });
+
+      await loadRestaurants();
+
+      setTimeout(() => {
+        setShowAddRestaurant(false);
+        setCreateSuccess("");
+      }, 900);
+    } catch (error) {
+      console.error(
+        "Failed to create restaurant:",
+        error,
+      );
+
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create restaurant.",
+      );
+    } finally {
+      setCreatingRestaurant(false);
+    }
+  };
+
+  const closeAddRestaurant = () => {
+    if (creatingRestaurant) {
+      return;
+    }
+
+    setShowAddRestaurant(false);
+    setCreateError("");
+    setCreateSuccess("");
+
+    setForm({
+      name: "",
+      slug: "",
+      phone: "",
+      address: "",
+      plan: "starter",
+      openingHours: {
+        open: "09:00",
+        close: "22:00",
+      },
+    });
+  };
+
   return (
     <div className="mx-auto max-w-[1500px] space-y-7">
       {/* =====================================================
@@ -128,13 +288,14 @@ function AdminDashboardPage() {
             </p>
           </div>
 
-          <Link
-            to="/admin/restaurants"
+          <button
+            type="button"
+            onClick={() => setShowAddRestaurant(true)}
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700"
           >
             <span className="text-lg leading-none">+</span>
             Add restaurant
-          </Link>
+          </button>
         </div>
       </section>
 
@@ -474,12 +635,15 @@ function AdminDashboardPage() {
                   appear here automatically.
                 </p>
 
-                <Link
-                  to="/admin/restaurants"
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowAddRestaurant(true)
+                  }
                   className="mt-4 inline-flex h-9 items-center rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white transition hover:bg-emerald-700"
                 >
-                  Manage restaurants
-                </Link>
+                  Add restaurant
+                </button>
               </div>
             </div>
           ) : (
@@ -899,6 +1063,318 @@ function AdminDashboardPage() {
           </Link>
         </div>
       </section>
+
+      {/* =====================================================
+          ADD RESTAURANT MODAL
+      ====================================================== */}
+      {showAddRestaurant && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-sm">
+          <div
+            className="absolute inset-0"
+            onClick={closeAddRestaurant}
+          />
+
+          <div className="relative z-10 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            {/* Modal header */}
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                    <Store
+                      size={18}
+                      strokeWidth={1.8}
+                    />
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-black text-slate-950">
+                      Add restaurant
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      Create a new restaurant account on Aagan.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeAddRestaurant}
+                disabled={creatingRestaurant}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form
+              onSubmit={handleCreateRestaurant}
+              className="p-5 sm:p-6"
+            >
+              {createError && (
+                <div className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                  <p className="text-xs font-semibold text-red-700">
+                    {createError}
+                  </p>
+                </div>
+              )}
+
+              {createSuccess && (
+                <div className="mb-5 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                  <p className="text-xs font-semibold text-emerald-700">
+                    {createSuccess}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                {/* Name */}
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="restaurant-name"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Restaurant name
+                  </label>
+
+                  <input
+                    id="restaurant-name"
+                    type="text"
+                    value={form.name}
+                    onChange={(event) =>
+                      handleRestaurantNameChange(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="e.g. Himalayan Brew Cafe"
+                    disabled={creatingRestaurant}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 disabled:bg-slate-50"
+                  />
+                </div>
+
+                {/* Slug */}
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="restaurant-slug"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Restaurant slug
+                  </label>
+
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10">
+                    <span className="border-r border-slate-100 px-3 text-xs text-slate-400">
+                      /r/
+                    </span>
+
+                    <input
+                      id="restaurant-slug"
+                      type="text"
+                      value={form.slug}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          slug: generateSlug(
+                            event.target.value,
+                          ),
+                        }))
+                      }
+                      placeholder="himalayan-brew-cafe"
+                      disabled={creatingRestaurant}
+                      className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-300 disabled:bg-slate-50"
+                    />
+                  </div>
+
+                  <p className="mt-1.5 text-[10px] text-slate-400">
+                    Used in the restaurant's public menu URL.
+                  </p>
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label
+                    htmlFor="restaurant-phone"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Phone
+                  </label>
+
+                  <input
+                    id="restaurant-phone"
+                    type="tel"
+                    value={form.phone}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        phone: event.target.value,
+                      }))
+                    }
+                    placeholder="98XXXXXXXX"
+                    disabled={creatingRestaurant}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 disabled:bg-slate-50"
+                  />
+                </div>
+
+                {/* Plan */}
+                <div>
+                  <label
+                    htmlFor="restaurant-plan"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Plan
+                  </label>
+
+                  <select
+                    id="restaurant-plan"
+                    value={form.plan}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        plan: event.target
+                          .value as CreateRestaurantForm["plan"],
+                      }))
+                    }
+                    disabled={creatingRestaurant}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium capitalize text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 disabled:bg-slate-50"
+                  >
+                    <option value="starter">
+                      Starter
+                    </option>
+
+                    <option value="professional">
+                      Professional
+                    </option>
+
+                    <option value="custom">
+                      Custom
+                    </option>
+                  </select>
+                </div>
+
+                {/* Address */}
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="restaurant-address"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Address
+                  </label>
+
+                  <input
+                    id="restaurant-address"
+                    type="text"
+                    value={form.address}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        address: event.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Thamel, Kathmandu"
+                    disabled={creatingRestaurant}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 disabled:bg-slate-50"
+                  />
+                </div>
+
+                {/* Opening */}
+                <div>
+                  <label
+                    htmlFor="restaurant-open"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Opening time
+                  </label>
+
+                  <input
+                    id="restaurant-open"
+                    type="time"
+                    value={form.openingHours.open}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        openingHours: {
+                          ...current.openingHours,
+                          open: event.target.value,
+                        },
+                      }))
+                    }
+                    disabled={creatingRestaurant}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 disabled:bg-slate-50"
+                  />
+                </div>
+
+                {/* Closing */}
+                <div>
+                  <label
+                    htmlFor="restaurant-close"
+                    className="mb-2 block text-xs font-bold text-slate-700"
+                  >
+                    Closing time
+                  </label>
+
+                  <input
+                    id="restaurant-close"
+                    type="time"
+                    value={form.openingHours.close}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        openingHours: {
+                          ...current.openingHours,
+                          close: event.target.value,
+                        },
+                      }))
+                    }
+                    disabled={creatingRestaurant}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 disabled:bg-slate-50"
+                  />
+                </div>
+              </div>
+
+              {/* Notice */}
+              <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-[10px] leading-5 text-slate-500">
+                  The restaurant will be created as an active
+                  Aagan restaurant. An owner account can be
+                  assigned later through restaurant onboarding.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeAddRestaurant}
+                  disabled={creatingRestaurant}
+                  className="h-11 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={creatingRestaurant}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {creatingRestaurant ? (
+                    <>
+                      <RefreshCw
+                        size={15}
+                        className="animate-spin"
+                      />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create restaurant"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

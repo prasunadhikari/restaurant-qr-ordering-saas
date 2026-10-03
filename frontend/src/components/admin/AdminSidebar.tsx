@@ -1,8 +1,6 @@
 import {
-  Activity,
   BarChart3,
   ChevronRight,
-  CreditCard,
   LayoutDashboard,
   PanelLeft,
   Settings,
@@ -25,7 +23,6 @@ type NavigationItem = {
   label: string;
   path: string;
   icon: typeof LayoutDashboard;
-  badge?: string;
 };
 
 type NavigationGroup = {
@@ -57,7 +54,6 @@ function AdminSidebar({
           label: "Restaurants",
           path: "/admin/restaurants",
           icon: Store,
-          badge: "18",
         },
         {
           label: "Users",
@@ -68,7 +64,6 @@ function AdminSidebar({
           label: "Orders",
           path: "/admin/orders",
           icon: ShoppingBag,
-          badge: "24",
         },
       ],
     },
@@ -83,7 +78,7 @@ function AdminSidebar({
         {
           label: "Payments",
           path: "/admin/payments",
-          icon: CreditCard,
+          icon: WalletCards,
         },
       ],
     },
@@ -100,11 +95,6 @@ function AdminSidebar({
     {
       label: "System",
       items: [
-        {
-          label: "Platform Health",
-          path: "/admin/health",
-          icon: Activity,
-        },
         {
           label: "Settings",
           path: "/admin/settings",
@@ -142,17 +132,17 @@ function AdminSidebar({
           }`}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white shadow-sm">
-            R
+            A
           </div>
 
           {!collapsed && (
             <div className="ml-3 min-w-0">
               <p className="truncate text-[14px] font-bold tracking-tight text-slate-900">
-                RestaurantOS
+                Aagan
               </p>
 
               <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Admin Console
+                Platform Admin
               </p>
             </div>
           )}
@@ -221,23 +211,9 @@ function AdminSidebar({
                             </span>
 
                             {!collapsed && (
-                              <>
-                                <span className="flex-1 truncate text-[13px] font-semibold">
-                                  {item.label}
-                                </span>
-
-                                {item.badge && (
-                                  <span
-                                    className={`min-w-6 rounded-md px-1.5 py-0.5 text-center text-[9px] font-bold ${
-                                      isActive
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-slate-100 text-slate-500"
-                                    }`}
-                                  >
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </>
+                              <span className="flex-1 truncate text-[13px] font-semibold">
+                                {item.label}
+                              </span>
                             )}
                           </>
                         )}
@@ -254,19 +230,19 @@ function AdminSidebar({
         <div className="shrink-0 border-t border-slate-100 p-3">
           {/* Platform status */}
           {!collapsed && (
-            <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5">
+            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 </span>
 
                 <div>
-                  <p className="text-[10px] font-bold text-emerald-800">
-                    Platform operational
+                  <p className="text-[10px] font-bold text-slate-700">
+                    Aagan Platform
                   </p>
 
-                  <p className="text-[9px] text-emerald-600">
-                    All systems running normally
+                  <p className="text-[9px] text-slate-500">
+                    Administration console
                   </p>
                 </div>
               </div>
@@ -278,9 +254,7 @@ function AdminSidebar({
             type="button"
             onClick={onToggleCollapse}
             className={`mb-2 hidden w-full items-center rounded-xl py-2 text-xs font-semibold text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 lg:flex ${
-              collapsed
-                ? "justify-center"
-                : "justify-between px-3"
+              collapsed ? "justify-center" : "justify-between px-3"
             }`}
           >
             {!collapsed && <span>Collapse sidebar</span>}
@@ -304,18 +278,18 @@ function AdminSidebar({
               }`}
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">
-                PA
+                A
               </div>
 
               {!collapsed && (
                 <>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-bold text-slate-800">
-                      Prasun Adhikari
+                      Platform Admin
                     </p>
 
                     <p className="mt-0.5 truncate text-[10px] text-slate-500">
-                      Super Admin
+                      Administrator
                     </p>
                   </div>
 
