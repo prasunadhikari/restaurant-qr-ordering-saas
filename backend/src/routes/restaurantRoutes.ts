@@ -8,6 +8,8 @@ import {
   getAllRestaurants,
   getRestaurantById,
   updateRestaurantAsAdmin,
+  uploadMyRestaurantPaymentQr,
+  deleteMyRestaurantPaymentQr,
 } from "../controllers/restaurantController.js";
 
 import {
@@ -16,6 +18,8 @@ import {
 
 import authMiddleware from "../middleware/authMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
+import restaurantOwnerMiddleware from "../middleware/restaurantOwnerMiddleware.js";
+import { uploadPaymentQrImage } from "../middleware/paymentQrUpload.js";
 
 const router = Router();
 
@@ -45,6 +49,19 @@ router.put(
   "/me",
   authMiddleware,
   updateMyRestaurant,
+);
+router.post(
+  "/me/payment-qr/:provider",
+  authMiddleware,
+  restaurantOwnerMiddleware,
+  uploadPaymentQrImage,
+  uploadMyRestaurantPaymentQr,
+);
+router.delete(
+  "/me/payment-qr/:provider",
+  authMiddleware,
+  restaurantOwnerMiddleware,
+  deleteMyRestaurantPaymentQr,
 );
 
 // Get all restaurants for the admin dashboard

@@ -1,15 +1,24 @@
 import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { ImagePlus, Save, Trash2 } from "lucide-react";
 
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import {
+  deleteRestaurantPaymentQr,
   getRestaurantSettings,
+  uploadRestaurantPaymentQr,
   updateRestaurantSettings,
 } from "../../services/restaurantDashboardService";
 import type { Restaurant } from "../../services/restaurantService";
+import { resolveMediaUrl } from "../../services/api";
+
+const paymentQrProviders = [
+  { key: "esewa", title: "eSewa", enabled: "esewaEnabled", image: "esewaQrImage" },
+  { key: "khalti", title: "Khalti", enabled: "khaltiEnabled", image: "khaltiQrImage" },
+  { key: "bank", title: "Bank QR", enabled: "bankEnabled", image: "bankQrImage" },
+] as const;
 
 function SettingsPage() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -17,6 +26,7 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState("");
 
   useEffect(() => {
     void getRestaurantSettings()
@@ -66,6 +76,42 @@ function SettingsPage() {
         : current,
     );
     setSaved(false);
+  };
+
+  const uploadPaymentQr = async (
+    provider: (typeof paymentQrProviders)[number]["key"],
+    image: File | undefined,
+  ) => {
+    if (!image) return;
+    setUploadingQr(provider);
+    setError("");
+    try {
+      const storedImage = await uploadRestaurantPaymentQr(provider, image);
+      const imageField = paymentQrProviders.find((item) => item.key === provider)?.image;
+      if (imageField) setPaymentField(imageField, storedImage);
+    } catch (err) {
+      console.error(`Failed to upload ${provider} payment QR:`, err);
+      setError(err instanceof Error ? err.message : `Unable to upload ${provider} QR image.`);
+    } finally {
+      setUploadingQr("");
+    }
+  };
+
+  const removePaymentQr = async (
+    provider: (typeof paymentQrProviders)[number]["key"],
+  ) => {
+    setUploadingQr(provider);
+    setError("");
+    try {
+      await deleteRestaurantPaymentQr(provider);
+      const imageField = paymentQrProviders.find((item) => item.key === provider)?.image;
+      if (imageField) setPaymentField(imageField, "");
+    } catch (err) {
+      console.error(`Failed to remove ${provider} payment QR:`, err);
+      setError(err instanceof Error ? err.message : `Unable to remove ${provider} QR image.`);
+    } finally {
+      setUploadingQr("");
+    }
   };
 
   const saveSettings = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -211,7 +257,7 @@ function SettingsPage() {
       <Card>
         <h3 className="text-lg font-bold text-slate-900">Customer payment options</h3>
         <p className="mt-1 text-sm text-slate-500">
-          Customers pay you directly using these QR codes. A QR method is shown only when enabled and an image URL is provided.
+          Upload the payment QR images your customers scan. Only enabled methods with an uploaded QR are shown to customers.
         </p>
         <div className="mt-5 space-y-6">
           <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-4">
@@ -228,11 +274,7 @@ function SettingsPage() {
             />
           </div>
 
-          {([
-            { key: "esewa", title: "eSewa", enabled: "esewaEnabled", image: "esewaQrImage" },
-            { key: "khalti", title: "Khalti", enabled: "khaltiEnabled", image: "khaltiQrImage" },
-            { key: "bank", title: "Bank QR", enabled: "bankEnabled", image: "bankQrImage" },
-          ] as const).map((provider) => (
+          {paymentQrProviders.map((provider) => (
             <div key={provider.key} className="space-y-4 border-t border-slate-100 pt-5">
               <label className="flex items-center justify-between gap-4">
                 <span className="font-semibold text-slate-900">Enable {provider.title}</span>
@@ -244,13 +286,63 @@ function SettingsPage() {
                   className="h-5 w-5 accent-emerald-700"
                 />
               </label>
-              <Input
-                id={`${provider.key}-qr-image`}
-                label={`${provider.title} QR image URL`}
-                type="url"
-                value={restaurant.paymentSettings?.[provider.image] ?? ""}
-                onChange={(event) => setPaymentField(provider.image, event.target.value)}
-              />
+              <div>
+                <p className="mb-2 block text-sm font-medium text-slate-700">
+                  {provider.title} QR image
+                </p>
+                {restaurant.paymentSettings?.[provider.image] ? (
+                  <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
+                    <img
+                      src={resolveMediaUrl(restaurant.paymentSettings[provider.image])}
+                      alt={`${provider.title} payment QR preview`}
+                      className="h-36 w-36 rounded-lg border border-slate-200 bg-white object-contain p-2"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        <ImagePlus size={16} />
+                        {uploadingQr === provider.key ? "Uploading…" : "Replace QR"}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          disabled={Boolean(uploadingQr)}
+                          onChange={(event) => {
+                            void uploadPaymentQr(provider.key, event.target.files?.[0]);
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={Boolean(uploadingQr)}
+                        onClick={() => void removePaymentQr(provider.key)}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 size={15} />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 text-center transition hover:border-emerald-500 hover:bg-emerald-50/40">
+                    <ImagePlus size={22} className="text-slate-500" />
+                    <span className="mt-2 text-sm font-semibold text-slate-700">
+                      {uploadingQr === provider.key ? "Uploading QR…" : `Upload ${provider.title} QR`}
+                    </span>
+                    <span className="mt-1 text-xs text-slate-500">JPEG, PNG or WebP · max 5 MB</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={Boolean(uploadingQr)}
+                      onChange={(event) => {
+                        void uploadPaymentQr(provider.key, event.target.files?.[0]);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           ))}
 

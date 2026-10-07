@@ -1,9 +1,34 @@
 import { Response } from "express";
+import { unlink } from "node:fs/promises";
+import { basename, resolve, sep } from "node:path";
 
 import Restaurant from "../models/Restaurant.js";
 import User from "../models/User.js";
 
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+
+const paymentQrFields = {
+  esewa: "esewaQrImage",
+  khalti: "khaltiQrImage",
+  bank: "bankQrImage",
+} as const;
+
+type PaymentQrProvider = keyof typeof paymentQrFields;
+const isPaymentQrProvider = (value: unknown): value is PaymentQrProvider =>
+  typeof value === "string" && Object.hasOwn(paymentQrFields, value);
+
+const removeStoredPaymentQr = async (imagePath: string): Promise<void> => {
+  const filename = basename(imagePath);
+  if (!filename || filename.includes("\\")) return;
+  const directory = resolve(process.cwd(), "uploads", "payment-qr");
+  const filePath = resolve(directory, filename);
+  if (!filePath.startsWith(`${directory}${sep}`)) return;
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -461,6 +486,128 @@ export const updateMyRestaurant = async (
   }
 };
 
+export const uploadMyRestaurantPaymentQr = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  if (!req.user?.restaurantId || req.user.role !== "restaurant_owner") {
+    if (req.file) {
+      await unlink(req.file.path).catch((error: unknown) =>
+        console.error("Unable to remove unauthorized payment QR upload:", error),
+      );
+    }
+    res.status(403).json({ success: false, message: "Restaurant owner access required" });
+    return;
+  }
+
+  const provider = req.params.provider;
+  if (!isPaymentQrProvider(provider)) {
+    if (req.file) {
+      await unlink(req.file.path).catch((error: unknown) =>
+        console.error("Unable to remove invalid payment QR upload:", error),
+      );
+    }
+    res.status(400).json({ success: false, message: "Choose a valid payment QR provider" });
+    return;
+  }
+  if (!req.file) {
+    res.status(400).json({ success: false, message: "Choose a QR image to upload" });
+    return;
+  }
+
+  try {
+    const restaurant = await Restaurant.findById(req.user.restaurantId);
+    if (!restaurant) {
+      await unlink(req.file.path);
+      res.status(404).json({ success: false, message: "Restaurant not found" });
+      return;
+    }
+
+    const field = paymentQrFields[provider];
+    const previousImage = restaurant.paymentSettings?.[field] ?? "";
+    const image = `/uploads/payment-qr/${req.file.filename}`;
+    restaurant.paymentSettings = {
+      cashEnabled: restaurant.paymentSettings?.cashEnabled ?? true,
+      esewaEnabled: restaurant.paymentSettings?.esewaEnabled ?? false,
+      esewaQrImage: restaurant.paymentSettings?.esewaQrImage ?? "",
+      khaltiEnabled: restaurant.paymentSettings?.khaltiEnabled ?? false,
+      khaltiQrImage: restaurant.paymentSettings?.khaltiQrImage ?? "",
+      bankEnabled: restaurant.paymentSettings?.bankEnabled ?? false,
+      bankQrImage: restaurant.paymentSettings?.bankQrImage ?? "",
+      bankName: restaurant.paymentSettings?.bankName ?? "",
+      bankAccountName: restaurant.paymentSettings?.bankAccountName ?? "",
+      bankAccountNumber: restaurant.paymentSettings?.bankAccountNumber ?? "",
+      [field]: image,
+    };
+    await restaurant.save();
+
+    if (previousImage.startsWith("/uploads/payment-qr/")) {
+      try {
+        await removeStoredPaymentQr(previousImage.slice("/uploads/payment-qr/".length));
+      } catch (error) {
+        console.error("Failed to remove replaced payment QR image:", error);
+      }
+    }
+    res.json({ success: true, data: { image } });
+  } catch (error) {
+    await unlink(req.file.path).catch((cleanupError: unknown) =>
+      console.error("Failed to clean up payment QR upload:", cleanupError),
+    );
+    console.error("Upload restaurant payment QR error:", error);
+    res.status(500).json({ success: false, message: "Failed to upload payment QR image" });
+  }
+};
+
+export const deleteMyRestaurantPaymentQr = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  if (!req.user?.restaurantId || req.user.role !== "restaurant_owner") {
+    res.status(403).json({ success: false, message: "Restaurant owner access required" });
+    return;
+  }
+  const provider = req.params.provider;
+  if (!isPaymentQrProvider(provider)) {
+    res.status(400).json({ success: false, message: "Choose a valid payment QR provider" });
+    return;
+  }
+
+  try {
+    const restaurant = await Restaurant.findById(req.user.restaurantId);
+    if (!restaurant) {
+      res.status(404).json({ success: false, message: "Restaurant not found" });
+      return;
+    }
+    const field = paymentQrFields[provider];
+    const previousImage = restaurant.paymentSettings?.[field] ?? "";
+    restaurant.paymentSettings = {
+      cashEnabled: restaurant.paymentSettings?.cashEnabled ?? true,
+      esewaEnabled: restaurant.paymentSettings?.esewaEnabled ?? false,
+      esewaQrImage: restaurant.paymentSettings?.esewaQrImage ?? "",
+      khaltiEnabled: restaurant.paymentSettings?.khaltiEnabled ?? false,
+      khaltiQrImage: restaurant.paymentSettings?.khaltiQrImage ?? "",
+      bankEnabled: restaurant.paymentSettings?.bankEnabled ?? false,
+      bankQrImage: restaurant.paymentSettings?.bankQrImage ?? "",
+      bankName: restaurant.paymentSettings?.bankName ?? "",
+      bankAccountName: restaurant.paymentSettings?.bankAccountName ?? "",
+      bankAccountNumber: restaurant.paymentSettings?.bankAccountNumber ?? "",
+      [field]: "",
+    };
+    await restaurant.save();
+
+    if (previousImage.startsWith("/uploads/payment-qr/")) {
+      try {
+        await removeStoredPaymentQr(previousImage.slice("/uploads/payment-qr/".length));
+      } catch (error) {
+        console.error("Failed to remove deleted payment QR image:", error);
+      }
+    }
+    res.json({ success: true, data: { image: "" } });
+  } catch (error) {
+    console.error("Delete restaurant payment QR error:", error);
+    res.status(500).json({ success: false, message: "Failed to remove payment QR image" });
+  }
+};
 
 /*
 |--------------------------------------------------------------------------

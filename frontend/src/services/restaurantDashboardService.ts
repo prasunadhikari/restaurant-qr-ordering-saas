@@ -124,6 +124,28 @@ export const updateRestaurantSettings = async (
     })
   ).restaurant;
 
+export const uploadRestaurantPaymentQr = async (
+  provider: "esewa" | "khalti" | "bank",
+  image: File,
+): Promise<string> => {
+  const formData = new FormData();
+  formData.append("image", image);
+  const result = await authorized<{ image: string }>(
+    `/restaurants/me/payment-qr/${provider}`,
+    { method: "POST", body: formData },
+  );
+  return result.image;
+};
+
+export const deleteRestaurantPaymentQr = async (
+  provider: "esewa" | "khalti" | "bank",
+): Promise<void> => {
+  await authorized<{ image: string }>(
+    `/restaurants/me/payment-qr/${provider}`,
+    { method: "DELETE" },
+  );
+};
+
 export const getMenuData = async (): Promise<{
   categories: MenuCategory[];
   items: MenuItem[];
