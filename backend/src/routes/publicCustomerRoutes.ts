@@ -4,6 +4,7 @@ import {
   createCustomerOrder,
   getCustomerOrder,
   getPublicRestaurantMenu,
+  updateCustomerOrderPayment,
 } from "../controllers/publicCustomerController.js";
 
 const router = Router();
@@ -17,5 +18,6 @@ router.post(
   createCustomerOrder,
 );
 router.get("/orders/:trackingToken", getCustomerOrder);
+router.post("/orders/:trackingToken/payment", updateCustomerOrderPayment);
 
 export default router;

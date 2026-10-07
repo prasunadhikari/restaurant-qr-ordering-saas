@@ -38,6 +38,36 @@ function SettingsPage() {
     setSaved(false);
   };
 
+  const setPaymentField = <
+    K extends keyof NonNullable<Restaurant["paymentSettings"]>,
+  >(
+    key: K,
+    value: NonNullable<Restaurant["paymentSettings"]>[K],
+  ) => {
+    setRestaurant((current) =>
+      current
+        ? {
+            ...current,
+            paymentSettings: {
+              cashEnabled: true,
+              esewaEnabled: false,
+              esewaQrImage: "",
+              khaltiEnabled: false,
+              khaltiQrImage: "",
+              bankEnabled: false,
+              bankQrImage: "",
+              bankName: "",
+              bankAccountName: "",
+              bankAccountNumber: "",
+              ...current.paymentSettings,
+              [key]: value,
+            },
+          }
+        : current,
+    );
+    setSaved(false);
+  };
+
   const saveSettings = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!restaurant) return;
@@ -55,6 +85,18 @@ function SettingsPage() {
         coverImage: restaurant.coverImage,
         openingHours: restaurant.openingHours,
         acceptingOrders: restaurant.acceptingOrders,
+        paymentSettings: {
+          cashEnabled: restaurant.paymentSettings?.cashEnabled ?? true,
+          esewaEnabled: restaurant.paymentSettings?.esewaEnabled ?? false,
+          esewaQrImage: restaurant.paymentSettings?.esewaQrImage ?? "",
+          khaltiEnabled: restaurant.paymentSettings?.khaltiEnabled ?? false,
+          khaltiQrImage: restaurant.paymentSettings?.khaltiQrImage ?? "",
+          bankEnabled: restaurant.paymentSettings?.bankEnabled ?? false,
+          bankQrImage: restaurant.paymentSettings?.bankQrImage ?? "",
+          bankName: restaurant.paymentSettings?.bankName ?? "",
+          bankAccountName: restaurant.paymentSettings?.bankAccountName ?? "",
+          bankAccountNumber: restaurant.paymentSettings?.bankAccountNumber ?? "",
+        },
       });
       setRestaurant(updated);
       setSaved(true);
@@ -163,6 +205,77 @@ function SettingsPage() {
             value={restaurant.coverImage || ""}
             onChange={(event) => setField("coverImage", event.target.value)}
           />
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-lg font-bold text-slate-900">Customer payment options</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Customers pay you directly using these QR codes. A QR method is shown only when enabled and an image URL is provided.
+        </p>
+        <div className="mt-5 space-y-6">
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-4">
+            <div>
+              <p className="font-semibold text-slate-900">Cash at restaurant</p>
+              <p className="mt-1 text-xs text-slate-500">Payment remains pending until staff confirms it.</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={restaurant.paymentSettings?.cashEnabled ?? true}
+              onChange={(event) => setPaymentField("cashEnabled", event.target.checked)}
+              aria-label="Enable cash payment"
+              className="h-5 w-5 accent-emerald-700"
+            />
+          </div>
+
+          {([
+            { key: "esewa", title: "eSewa", enabled: "esewaEnabled", image: "esewaQrImage" },
+            { key: "khalti", title: "Khalti", enabled: "khaltiEnabled", image: "khaltiQrImage" },
+            { key: "bank", title: "Bank QR", enabled: "bankEnabled", image: "bankQrImage" },
+          ] as const).map((provider) => (
+            <div key={provider.key} className="space-y-4 border-t border-slate-100 pt-5">
+              <label className="flex items-center justify-between gap-4">
+                <span className="font-semibold text-slate-900">Enable {provider.title}</span>
+                <input
+                  type="checkbox"
+                  checked={restaurant.paymentSettings?.[provider.enabled] ?? false}
+                  onChange={(event) => setPaymentField(provider.enabled, event.target.checked)}
+                  aria-label={`Enable ${provider.title}`}
+                  className="h-5 w-5 accent-emerald-700"
+                />
+              </label>
+              <Input
+                id={`${provider.key}-qr-image`}
+                label={`${provider.title} QR image URL`}
+                type="url"
+                value={restaurant.paymentSettings?.[provider.image] ?? ""}
+                onChange={(event) => setPaymentField(provider.image, event.target.value)}
+              />
+            </div>
+          ))}
+
+          {restaurant.paymentSettings?.bankEnabled && (
+            <div className="grid gap-5 border-t border-slate-100 pt-5 sm:grid-cols-2">
+              <Input
+                id="bank-name"
+                label="Bank name (optional)"
+                value={restaurant.paymentSettings.bankName}
+                onChange={(event) => setPaymentField("bankName", event.target.value)}
+              />
+              <Input
+                id="bank-account-name"
+                label="Account name (optional)"
+                value={restaurant.paymentSettings.bankAccountName}
+                onChange={(event) => setPaymentField("bankAccountName", event.target.value)}
+              />
+              <Input
+                id="bank-account-number"
+                label="Account number (optional)"
+                value={restaurant.paymentSettings.bankAccountNumber}
+                onChange={(event) => setPaymentField("bankAccountNumber", event.target.value)}
+              />
+            </div>
+          )}
         </div>
       </Card>
 

@@ -11,12 +11,22 @@ export type OrderStatus =
   | "Ready"
   | "Served";
 
+export type OrderPaymentMethod = "cash" | "esewa" | "khalti" | "bank_qr";
+export type OrderPaymentStatus =
+  | "unpaid"
+  | "pending"
+  | "pending_verification"
+  | "paid"
+  | "rejected";
+
 export interface IOrder extends Document {
   restaurantId: mongoose.Types.ObjectId;
   tableId: mongoose.Types.ObjectId;
   orderNumber: string;
   trackingToken: string;
   status: OrderStatus;
+  paymentMethod?: OrderPaymentMethod;
+  paymentStatus: OrderPaymentStatus;
   items: Array<{
     menuItemId?: mongoose.Types.ObjectId;
     name: string;
@@ -60,6 +70,16 @@ const orderSchema = new Schema<IOrder>(
         "Served",
       ],
       default: "pending",
+      index: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "esewa", "khalti", "bank_qr"],
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "pending", "pending_verification", "paid", "rejected"],
+      default: "unpaid",
       index: true,
     },
     items: [

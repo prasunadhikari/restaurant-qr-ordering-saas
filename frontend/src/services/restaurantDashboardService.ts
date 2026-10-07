@@ -114,6 +114,7 @@ export const updateRestaurantSettings = async (
   value: Partial<Restaurant> & {
     restaurantType?: string;
     acceptingOrders?: boolean;
+    paymentSettings?: NonNullable<Restaurant["paymentSettings"]>;
   },
 ): Promise<Restaurant> =>
   (

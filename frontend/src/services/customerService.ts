@@ -10,6 +10,17 @@ export interface PublicRestaurant {
   restaurantType: string;
   openingHours?: { open: string; close: string };
   isOpen: boolean;
+  paymentSettings: {
+    cashEnabled: boolean;
+    esewa: { qrImage: string } | null;
+    khalti: { qrImage: string } | null;
+    bank: {
+      qrImage: string;
+      bankName: string;
+      accountName: string;
+      accountNumber: string;
+    } | null;
+  };
 }
 
 export interface PublicMenuCategory {
@@ -43,13 +54,24 @@ export type CustomerOrderStatus =
   | "ready"
   | "served";
 
+export type CustomerPaymentMethod = "cash" | "esewa" | "khalti" | "bank_qr";
+export type CustomerPaymentStatus =
+  | "unpaid"
+  | "pending"
+  | "pending_verification"
+  | "paid"
+  | "rejected";
+
 export interface CustomerOrder {
   orderNumber: string;
   trackingToken?: string;
   status: CustomerOrderStatus;
+  paymentMethod?: CustomerPaymentMethod;
+  paymentStatus?: CustomerPaymentStatus;
   total: number;
   createdAt: string;
   restaurantName: string;
+  restaurantSlug?: string;
   tableNumber: string;
   items: Array<{
     name: string;
@@ -82,6 +104,34 @@ export const getPublicMenu = async (
   ).data;
   return {
     ...menu,
+    restaurant: {
+      ...menu.restaurant,
+      paymentSettings: {
+        ...menu.restaurant.paymentSettings,
+        esewa: menu.restaurant.paymentSettings.esewa
+          ? {
+              qrImage: resolveMediaUrl(
+                menu.restaurant.paymentSettings.esewa.qrImage,
+              ),
+            }
+          : null,
+        khalti: menu.restaurant.paymentSettings.khalti
+          ? {
+              qrImage: resolveMediaUrl(
+                menu.restaurant.paymentSettings.khalti.qrImage,
+              ),
+            }
+          : null,
+        bank: menu.restaurant.paymentSettings.bank
+          ? {
+              ...menu.restaurant.paymentSettings.bank,
+              qrImage: resolveMediaUrl(
+                menu.restaurant.paymentSettings.bank.qrImage,
+              ),
+            }
+          : null,
+      },
+    },
     items: menu.items.map((item) => ({
       ...item,
       image: resolveMediaUrl(item.image),
@@ -117,3 +167,17 @@ export const getCustomerOrder = async (
       `/public/orders/${encodeURIComponent(trackingToken)}`,
     )
   ).data.order;
+
+export const updateCustomerOrderPayment = async (
+  trackingToken: string,
+  method: CustomerPaymentMethod,
+  action: "select" | "submit",
+): Promise<Pick<CustomerOrder, "paymentMethod" | "paymentStatus">> =>
+  (
+    await apiRequest<
+      ApiResponse<Pick<CustomerOrder, "paymentMethod" | "paymentStatus">>
+    >(`/public/orders/${encodeURIComponent(trackingToken)}/payment`, {
+      method: "POST",
+      body: JSON.stringify({ method, action }),
+    })
+  ).data;

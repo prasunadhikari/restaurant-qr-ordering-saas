@@ -9,6 +9,18 @@ export interface IRestaurant extends Document {
   address?: string;
   restaurantType?: string;
   acceptingOrders: boolean;
+  paymentSettings: {
+    cashEnabled: boolean;
+    esewaEnabled: boolean;
+    esewaQrImage: string;
+    khaltiEnabled: boolean;
+    khaltiQrImage: string;
+    bankEnabled: boolean;
+    bankQrImage: string;
+    bankName: string;
+    bankAccountName: string;
+    bankAccountNumber: string;
+  };
 
   openingHours?: {
     open: string;
@@ -71,6 +83,19 @@ const restaurantSchema = new Schema<IRestaurant>(
     acceptingOrders: {
       type: Boolean,
       default: true,
+    },
+
+    paymentSettings: {
+      cashEnabled: { type: Boolean, default: true },
+      esewaEnabled: { type: Boolean, default: false },
+      esewaQrImage: { type: String, default: "" },
+      khaltiEnabled: { type: Boolean, default: false },
+      khaltiQrImage: { type: String, default: "" },
+      bankEnabled: { type: Boolean, default: false },
+      bankQrImage: { type: String, default: "" },
+      bankName: { type: String, default: "", trim: true },
+      bankAccountName: { type: String, default: "", trim: true },
+      bankAccountNumber: { type: String, default: "", trim: true },
     },
 
     openingHours: {

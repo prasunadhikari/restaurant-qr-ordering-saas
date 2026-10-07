@@ -4,11 +4,48 @@ import mongoose from "mongoose";
 
 import MenuCategory from "../models/MenuCategory.js";
 import MenuItem from "../models/MenuItem.js";
-import Order from "../models/Order.js";
+import Order, { type OrderPaymentMethod } from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
+
+const publicPaymentSettings = (restaurant: {
+  paymentSettings?: {
+    cashEnabled?: boolean;
+    esewaEnabled?: boolean;
+    esewaQrImage?: string;
+    khaltiEnabled?: boolean;
+    khaltiQrImage?: string;
+    bankEnabled?: boolean;
+    bankQrImage?: string;
+    bankName?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+  };
+}) => {
+  const settings = restaurant.paymentSettings;
+  return {
+    cashEnabled: settings?.cashEnabled ?? true,
+    esewa:
+      settings?.esewaEnabled && settings.esewaQrImage
+        ? { qrImage: settings.esewaQrImage }
+        : null,
+    khalti:
+      settings?.khaltiEnabled && settings.khaltiQrImage
+        ? { qrImage: settings.khaltiQrImage }
+        : null,
+    bank:
+      settings?.bankEnabled && settings.bankQrImage
+        ? {
+            qrImage: settings.bankQrImage,
+            bankName: settings.bankName ?? "",
+            accountName: settings.bankAccountName ?? "",
+            accountNumber: settings.bankAccountNumber ?? "",
+          }
+        : null,
+  };
+};
 
 const handleError = (error: unknown, res: Response, message: string): void => {
   console.error(message, error);
@@ -100,6 +137,7 @@ export const getPublicRestaurantMenu = async (
           restaurantType: restaurant.restaurantType,
           openingHours: restaurant.openingHours,
           isOpen: isRestaurantOpen(restaurant),
+          paymentSettings: publicPaymentSettings(restaurant),
         },
         table: {
           _id: table._id,
@@ -246,6 +284,7 @@ export const createCustomerOrder = async (
       orderNumber: randomBytes(4).toString("hex").toUpperCase(),
       trackingToken: randomUUID(),
       status: "pending",
+      paymentStatus: "unpaid",
       items: orderItems,
       specialInstructions: orderNote,
       total,
@@ -259,9 +298,12 @@ export const createCustomerOrder = async (
           orderNumber: order.orderNumber,
           trackingToken: order.trackingToken,
           status: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
           total: order.total,
           createdAt: order.createdAt,
           restaurantName: restaurant.name,
+          restaurantSlug: restaurant.slug,
           tableNumber: table.tableNumber,
           items: order.items,
         },
@@ -279,9 +321,9 @@ export const getCustomerOrder = async (
   try {
     const order = await Order.findOne({
       trackingToken: req.params.trackingToken,
-    }).populate<{ restaurantId: { name: string } | null }>(
+    }).populate<{ restaurantId: { name: string; slug: string } | null }>(
       "restaurantId",
-      "name",
+      "name slug",
     );
     if (!order) {
       res.status(404).json({
@@ -299,10 +341,14 @@ export const getCustomerOrder = async (
       data: {
         order: {
           orderNumber: order.orderNumber,
+          trackingToken: order.trackingToken,
           status: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus ?? "unpaid",
           total: order.total,
           createdAt: order.createdAt,
           restaurantName: order.restaurantId?.name ?? "",
+          restaurantSlug: order.restaurantId?.slug ?? "",
           tableNumber: table?.tableNumber ?? "",
           items: order.items,
         },
@@ -310,5 +356,102 @@ export const getCustomerOrder = async (
     });
   } catch (error) {
     handleError(error, res, "Failed to load order status");
+  }
+};
+
+export const updateCustomerOrderPayment = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const { trackingToken } = req.params;
+  const method: unknown = req.body?.method;
+  const action: unknown = req.body?.action;
+  const isPaymentMethod = (value: unknown): value is OrderPaymentMethod =>
+    value === "cash" ||
+    value === "esewa" ||
+    value === "khalti" ||
+    value === "bank_qr";
+  const isPaymentAction = (value: unknown): value is "select" | "submit" =>
+    value === "select" || value === "submit";
+
+  if (!isPaymentMethod(method) || !isPaymentAction(action)) {
+    res.status(400).json({
+      success: false,
+      message: "Choose a valid payment method and action",
+    });
+    return;
+  }
+
+  try {
+    const order = await Order.findOne({ trackingToken });
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    const restaurant = await Restaurant.findById(order.restaurantId).select(
+      "paymentSettings",
+    );
+    if (!restaurant) {
+      res.status(404).json({ success: false, message: "Restaurant not found" });
+      return;
+    }
+
+    const selectedMethod = method;
+    const settings = restaurant.paymentSettings;
+    const isEnabled =
+      selectedMethod === "cash"
+        ? settings?.cashEnabled ?? true
+        : selectedMethod === "esewa"
+          ? Boolean(settings?.esewaEnabled && settings.esewaQrImage)
+          : selectedMethod === "khalti"
+            ? Boolean(settings?.khaltiEnabled && settings.khaltiQrImage)
+            : Boolean(settings?.bankEnabled && settings.bankQrImage);
+
+    if (!isEnabled) {
+      res.status(409).json({
+        success: false,
+        message: "This payment method is not available at this restaurant",
+      });
+      return;
+    }
+
+    if (
+      order.paymentStatus === "paid" ||
+      order.paymentStatus === "pending_verification"
+    ) {
+      res.status(409).json({
+        success: false,
+        message: "This order already has a payment awaiting confirmation",
+      });
+      return;
+    }
+
+    if (
+      action === "submit" &&
+      (selectedMethod === "cash" ||
+        order.paymentMethod !== selectedMethod ||
+        order.paymentStatus !== "pending")
+    ) {
+      res.status(409).json({
+        success: false,
+        message: "Select this online payment method before submitting payment",
+      });
+      return;
+    }
+
+    order.paymentMethod = selectedMethod;
+    order.paymentStatus = action === "submit" ? "pending_verification" : "pending";
+    await order.save();
+
+    res.json({
+      success: true,
+      data: {
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+      },
+    });
+  } catch (error) {
+    handleError(error, res, "Failed to update customer payment");
   }
 };

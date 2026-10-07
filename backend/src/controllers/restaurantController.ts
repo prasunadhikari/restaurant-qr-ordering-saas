@@ -308,6 +308,7 @@ export const updateMyRestaurant = async (
       restaurantType,
       openingHours,
       acceptingOrders,
+      paymentSettings,
     } = req.body;
 
     if (name !== undefined) {
@@ -380,6 +381,69 @@ export const updateMyRestaurant = async (
 
     if (typeof acceptingOrders === "boolean") {
       restaurant.acceptingOrders = acceptingOrders;
+    }
+
+    if (paymentSettings !== undefined) {
+      const imageFields = ["esewaQrImage", "khaltiQrImage", "bankQrImage"] as const;
+      const textLimits = {
+        bankName: 100,
+        bankAccountName: 100,
+        bankAccountNumber: 50,
+      } as const;
+      if (typeof paymentSettings !== "object" || paymentSettings === null || Array.isArray(paymentSettings)) {
+        res.status(400).json({
+          success: false,
+          message: "Valid payment settings are required",
+        });
+        return;
+      }
+      const current = restaurant.paymentSettings;
+      const next = { ...current };
+      for (const field of ["cashEnabled", "esewaEnabled", "khaltiEnabled", "bankEnabled"] as const) {
+        if (paymentSettings[field] !== undefined) {
+          if (typeof paymentSettings[field] !== "boolean") {
+            res.status(400).json({
+              success: false,
+              message: `Invalid ${field} payment setting`,
+            });
+            return;
+          }
+          next[field] = paymentSettings[field];
+        }
+      }
+      for (const field of imageFields) {
+        if (paymentSettings[field] !== undefined) {
+          const value = paymentSettings[field];
+          if (
+            typeof value !== "string" ||
+            value.length > 2000 ||
+            (value !== "" && !/^(https?:\/\/|\/)/i.test(value))
+          ) {
+            res.status(400).json({
+              success: false,
+              message: `Invalid ${field} image URL`,
+            });
+            return;
+          }
+          next[field] = value.trim();
+        }
+      }
+      for (const [field, maxLength] of Object.entries(textLimits) as Array<
+        [keyof typeof textLimits, number]
+      >) {
+        if (paymentSettings[field] !== undefined) {
+          const value = paymentSettings[field];
+          if (typeof value !== "string" || value.length > maxLength) {
+            res.status(400).json({
+              success: false,
+              message: `Invalid ${field} payment setting`,
+            });
+            return;
+          }
+          next[field] = value.trim();
+        }
+      }
+      restaurant.paymentSettings = next;
     }
 
     await restaurant.save();

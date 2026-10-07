@@ -16,6 +16,18 @@ export interface Restaurant {
   address: string;
   restaurantType?: string;
   acceptingOrders?: boolean;
+  paymentSettings?: {
+    cashEnabled: boolean;
+    esewaEnabled: boolean;
+    esewaQrImage: string;
+    khaltiEnabled: boolean;
+    khaltiQrImage: string;
+    bankEnabled: boolean;
+    bankQrImage: string;
+    bankName: string;
+    bankAccountName: string;
+    bankAccountNumber: string;
+  };
 
   openingHours?: {
     open: string;

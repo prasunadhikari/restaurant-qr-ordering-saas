@@ -14,6 +14,8 @@ import {
   getCustomerOrder,
   getPublicMenu,
   placeCustomerOrder,
+  updateCustomerOrderPayment,
+  type CustomerPaymentMethod,
   type PublicMenu,
 } from "../../services/customerService";
 import type { MenuCategory, MenuItem } from "../../types/menu";
@@ -24,6 +26,7 @@ function RestaurantMenuPage() {
     tableNumber: string;
   }>();
   const routeKey = `${restaurantSlug}\u0000${tableNumber}`;
+  const storedOrderKey = `aagan:last-order:${restaurantSlug}:${tableNumber}`;
   const [menuState, setMenuState] = useState<{
     routeKey: string;
     menu: PublicMenu | null;
@@ -38,6 +41,8 @@ function RestaurantMenuPage() {
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const [trackingError, setTrackingError] = useState("");
   const [lastOrder, setLastOrder] = useState<CustomerOrder | null>(null);
   const menu = menuState.routeKey === routeKey ? menuState.menu : null;
@@ -79,8 +84,63 @@ function RestaurantMenuPage() {
   }, [restaurantSlug, tableNumber, routeKey]);
 
   useEffect(() => {
+    let active = true;
+    let trackingToken: string | null;
+    try {
+      trackingToken = window.sessionStorage.getItem(storedOrderKey);
+    } catch (error) {
+      console.warn("Unable to restore the previous order from this browser tab:", error);
+      return () => {
+        active = false;
+      };
+    }
+    if (!trackingToken) return () => {
+      active = false;
+    };
+
+    getCustomerOrder(trackingToken)
+      .then((order) => {
+        if (
+          active &&
+          order.restaurantSlug === restaurantSlug &&
+          order.tableNumber === tableNumber
+        ) {
+          setLastOrder(order);
+        } else if (active) {
+          try {
+            window.sessionStorage.removeItem(storedOrderKey);
+          } catch (error) {
+            console.warn("Unable to remove an order from another table:", error);
+          }
+        }
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        console.error("Failed to restore customer order:", error);
+        setTrackingError(
+          error instanceof Error
+            ? error.message
+            : "Unable to restore the previous order.",
+        );
+        try {
+          window.sessionStorage.removeItem(storedOrderKey);
+        } catch (storageError) {
+          console.warn("Unable to remove an expired order from this browser tab:", storageError);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [restaurantSlug, storedOrderKey, tableNumber]);
+
+  useEffect(() => {
     const trackingToken = lastOrder?.trackingToken;
-    if (!trackingToken || lastOrder.status === "served") return;
+    if (
+      !trackingToken ||
+      (lastOrder.status.toLowerCase() === "served" &&
+        (lastOrder.paymentStatus === "paid" ||
+          lastOrder.paymentStatus === "rejected"))
+    ) return;
 
     let active = true;
     const refreshOrder = async () => {
@@ -110,7 +170,7 @@ function RestaurantMenuPage() {
       active = false;
       window.clearInterval(interval);
     };
-  }, [lastOrder?.trackingToken, lastOrder?.status]);
+  }, [lastOrder?.trackingToken, lastOrder?.status, lastOrder?.paymentStatus]);
 
   const categories: MenuCategory[] = useMemo(
     () =>
@@ -214,6 +274,13 @@ function RestaurantMenuPage() {
         orderNote,
       );
       setLastOrder(order);
+      if (order.trackingToken) {
+        try {
+          window.sessionStorage.setItem(storedOrderKey, order.trackingToken);
+        } catch (error) {
+          console.warn("Unable to remember this order in the current browser tab:", error);
+        }
+      }
       setIsCheckoutOpen(false);
       setIsOrderConfirmed(true);
       setCartItems([]);
@@ -224,6 +291,32 @@ function RestaurantMenuPage() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleUpdatePayment = async (
+    method: CustomerPaymentMethod,
+    action: "select" | "submit",
+  ): Promise<boolean> => {
+    if (!lastOrder?.trackingToken || paymentBusy) return false;
+    setPaymentBusy(true);
+    setPaymentError("");
+    try {
+      const payment = await updateCustomerOrderPayment(
+        lastOrder.trackingToken,
+        method,
+        action,
+      );
+      setLastOrder((current) => (current ? { ...current, ...payment } : current));
+      return true;
+    } catch (error) {
+      console.error("Failed to update customer payment:", error);
+      setPaymentError(
+        error instanceof Error ? error.message : "Unable to update payment.",
+      );
+      return false;
+    } finally {
+      setPaymentBusy(false);
     }
   };
 
@@ -280,6 +373,9 @@ function RestaurantMenuPage() {
               </p>
               <p className="mt-0.5 text-sm font-semibold capitalize text-[#173b32]">
                 {lastOrder.status}
+                {lastOrder.paymentStatus
+                  ? ` · Payment ${lastOrder.paymentStatus.replaceAll("_", " ")}`
+                  : ""}
               </p>
             </div>
             <button
@@ -449,6 +545,10 @@ function RestaurantMenuPage() {
               (sum, item) => sum + item.quantity,
               0,
             )}
+            paymentSettings={restaurant.paymentSettings}
+            paymentBusy={paymentBusy}
+            paymentError={paymentError}
+            onUpdatePayment={handleUpdatePayment}
             onContinueBrowsing={() => setIsOrderConfirmed(false)}
           />
         </>
