@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, CircleX, Clock3, RefreshCw } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
@@ -19,20 +19,30 @@ function ManagerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const requestInFlight = useRef(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     setError("");
     try {
       setOrders(await getManagerOrders());
+      setLastRefresh(new Date());
     } catch (cause) {
       console.error("Failed to load manager orders:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to load orders.");
     } finally {
       setLoading(false);
+      requestInFlight.current = false;
     }
-  };
+  }, []);
 
-  useEffect(() => { void Promise.resolve().then(load); }, []);
+  useEffect(() => {
+    void Promise.resolve().then(load);
+    const interval = window.setInterval(() => { void load(); }, 5000);
+    return () => window.clearInterval(interval);
+  }, [load]);
 
   const visibleOrders = useMemo(
     () => filter === "all" ? orders : orders.filter((order) => statusLabel(order.status) === filter),
@@ -73,8 +83,8 @@ function ManagerOrdersPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Service queue</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Orders</h1><p className="mt-2 text-sm text-slate-500">Accept, guide, and close restaurant orders.</p></div>
-        <Button type="button" variant="outline" onClick={() => void load()}><RefreshCw size={15} /> Refresh</Button>
+        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Service queue</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Orders</h1><p className="mt-2 text-sm text-slate-500">Accept, guide, and close restaurant orders.</p>{lastRefresh && <p className="mt-1 text-xs text-slate-400">Live · refreshed {lastRefresh.toLocaleTimeString()} · every 5 seconds</p>}</div>
+        <Button type="button" variant="outline" onClick={() => void load()}><RefreshCw size={15} /> Refresh now</Button>
       </header>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
       <div className="flex gap-2 overflow-x-auto pb-1">

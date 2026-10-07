@@ -137,6 +137,7 @@ function RestaurantMenuPage() {
     const trackingToken = lastOrder?.trackingToken;
     if (
       !trackingToken ||
+      lastOrder.status.toLowerCase() === "cancelled" ||
       (lastOrder.status.toLowerCase() === "served" &&
         (lastOrder.paymentStatus === "paid" ||
           lastOrder.paymentStatus === "rejected"))
@@ -529,6 +530,21 @@ function RestaurantMenuPage() {
         error={orderError}
         onPlaceOrder={handlePlaceOrder}
       />
+      {lastOrder?.status.toLowerCase() === "cancelled" && !isOrderConfirmed && (
+        <div
+          role="alert"
+          className="fixed bottom-4 left-4 right-4 z-[70] mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-lg"
+        >
+          <span><strong>Order #{lastOrder.orderNumber} was cancelled.</strong>{lastOrder.declineReason ? ` ${lastOrder.declineReason}` : ""}</span>
+          <button
+            type="button"
+            onClick={() => setIsOrderConfirmed(true)}
+            className="shrink-0 rounded-lg bg-red-900 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800"
+          >
+            View details
+          </button>
+        </div>
+      )}
       {isOrderConfirmed && lastOrder && (
         <>
           {trackingError && (

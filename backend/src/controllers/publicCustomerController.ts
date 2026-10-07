@@ -302,6 +302,7 @@ export const createCustomerOrder = async (
           orderNumber: order.orderNumber,
           trackingToken: order.trackingToken,
           status: order.status,
+          declineReason: order.declineReason,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
           total: order.total,
@@ -347,6 +348,7 @@ export const getCustomerOrder = async (
           orderNumber: order.orderNumber,
           trackingToken: order.trackingToken,
           status: order.status,
+          declineReason: order.declineReason,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus ?? "unpaid",
           total: order.total,
@@ -390,6 +392,10 @@ export const updateCustomerOrderPayment = async (
     const order = await Order.findOne({ trackingToken });
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+    if (order.status.toLowerCase() === "cancelled") {
+      res.status(409).json({ success: false, message: "Payment is unavailable for a cancelled order" });
       return;
     }
 

@@ -5,6 +5,7 @@ import {
   Banknote,
   Check,
   CircleCheck,
+  CircleX,
   CreditCard,
   QrCode,
 } from "lucide-react";
@@ -61,6 +62,7 @@ function OrderConfirmation({
     (stage) => stage.status === order.status.toLowerCase(),
   );
   const currentStage = orderStages[Math.max(0, currentIndex)];
+  const isCancelled = order.status.toLowerCase() === "cancelled";
   const availableOnlineMethods: Array<{
     method: Exclude<CustomerPaymentMethod, "cash">;
     label: string;
@@ -127,19 +129,21 @@ function OrderConfirmation({
         aria-labelledby="order-confirmation-title"
         className="w-full max-w-md overflow-hidden rounded-3xl border border-white/50 bg-[#fffefa] shadow-2xl"
       >
-        {screen === "order" && (
+        {(screen === "order" || isCancelled) && (
           <>
-            <div className="relative overflow-hidden bg-[#173b32] px-6 pb-8 pt-9 text-center text-white">
+            <div className={`relative overflow-hidden px-6 pb-8 pt-9 text-center text-white ${isCancelled ? "bg-red-900" : "bg-[#173b32]"}`}>
               <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full border border-white/10" />
               <div className="absolute -right-2 -top-4 h-28 w-28 rounded-full border border-white/10" />
               <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-2xl shadow-inner">
-                ✓
+                {isCancelled ? <CircleX size={27} /> : "✓"}
               </div>
               <h1 id="order-confirmation-title" className="relative mt-4 font-serif text-3xl font-semibold">
-                Order placed
+              {isCancelled ? "Order cancelled" : "Order placed"}
               </h1>
               <p className="relative mt-2 text-sm text-white/75">
-                {order.restaurantName} · Table {order.tableNumber}
+              {isCancelled
+                ? "The restaurant could not proceed with this order."
+                : `${order.restaurantName} · Table ${order.tableNumber}`}
               </p>
             </div>
 
@@ -157,7 +161,12 @@ function OrderConfirmation({
                 </p>
               </div>
 
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e9e4d9] px-4 py-3">
+              {isCancelled ? (
+                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm leading-6 text-red-900">
+                  <p className="font-bold">This order has been cancelled by the restaurant.</p>
+                  <p className="mt-1">{order.declineReason || "Please contact restaurant staff if you need more information."}</p>
+                </div>
+              ) : <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e9e4d9] px-4 py-3">
                 <div>
                   <p className="text-xs font-medium text-slate-500">Payment</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">
@@ -177,60 +186,70 @@ function OrderConfirmation({
                 >
                   {statusLabel}
                 </span>
-              </div>
+              </div>}
 
-              {paymentStatus === "pending_verification" && (
+              {!isCancelled && paymentStatus === "pending_verification" && (
                 <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-900">
                   Your payment is waiting for restaurant confirmation.
                 </p>
               )}
 
-              <div id="order-progress">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-bold text-slate-900">Track your order</h2>
-                  <span className="rounded-full bg-[#edf3ec] px-3 py-1 text-xs font-semibold capitalize text-[#315b40]">
-                    {currentStage.label}
-                  </span>
+              {!isCancelled && (
+                <div id="order-progress">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-sm font-bold text-slate-900">Track your order</h2>
+                    <span className="rounded-full bg-[#edf3ec] px-3 py-1 text-xs font-semibold capitalize text-[#315b40]">
+                      {currentStage.label}
+                    </span>
+                  </div>
+                  <ol className="mt-4 grid grid-cols-5 gap-1" aria-label="Order progress">
+                    {orderStages.map((stage, index) => {
+                      const complete = index < currentIndex;
+                      const current = index === currentIndex;
+                      return (
+                        <li key={stage.status} className="text-center">
+                          <div
+                            className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
+                              complete || current
+                                ? "bg-[#173b32] text-white shadow-sm shadow-[#173b32]/20"
+                                : "bg-slate-100 text-slate-400"
+                            }`}
+                            aria-current={current ? "step" : undefined}
+                          >
+                            {complete ? <Check size={15} /> : index + 1}
+                          </div>
+                          <span
+                            className={`mt-2 block text-[10px] leading-4 ${
+                              complete || current ? "font-semibold text-slate-800" : "text-slate-400"
+                            }`}
+                          >
+                            {stage.label}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <p className="mt-3 text-center text-xs text-slate-500">
+                    This page updates as the restaurant moves your order along.
+                  </p>
                 </div>
-                <ol className="mt-4 grid grid-cols-5 gap-1" aria-label="Order progress">
-                  {orderStages.map((stage, index) => {
-                    const complete = index < currentIndex;
-                    const current = index === currentIndex;
-                    return (
-                      <li key={stage.status} className="text-center">
-                        <div
-                          className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                            complete || current
-                              ? "bg-[#173b32] text-white shadow-sm shadow-[#173b32]/20"
-                              : "bg-slate-100 text-slate-400"
-                          }`}
-                          aria-current={current ? "step" : undefined}
-                        >
-                          {complete ? <Check size={15} /> : index + 1}
-                        </div>
-                        <span
-                          className={`mt-2 block text-[10px] leading-4 ${
-                            complete || current ? "font-semibold text-slate-800" : "text-slate-400"
-                          }`}
-                        >
-                          {stage.label}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
-                <p className="mt-3 text-center text-xs text-slate-500">
-                  This page updates as the restaurant moves your order along.
-                </p>
-              </div>
+              )}
 
-              {paymentError && (
+              {!isCancelled && paymentError && (
                 <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
                   {paymentError}
                 </p>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              {isCancelled ? (
+                <button
+                  type="button"
+                  onClick={onContinueBrowsing}
+                  className="w-full rounded-xl bg-[#173b32] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#245747]"
+                >
+                  Continue browsing
+                </button>
+              ) : <div className="grid grid-cols-2 gap-3">
                 {canPay ? (
                   <button
                     type="button"
@@ -251,12 +270,12 @@ function OrderConfirmation({
                 >
                   Continue browsing
                 </button>
-              </div>
+              </div>}
             </div>
           </>
         )}
 
-        {screen !== "order" && (
+        {screen !== "order" && !isCancelled && (
           <>
             <div className="flex items-center gap-3 border-b border-[#eee8dc] px-5 py-4">
               <button

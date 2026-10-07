@@ -52,7 +52,8 @@ export type CustomerOrderStatus =
   | "accepted"
   | "preparing"
   | "ready"
-  | "served";
+  | "served"
+  | "cancelled";
 
 export type CustomerPaymentMethod = "cash" | "esewa" | "khalti" | "bank_qr";
 export type CustomerPaymentStatus =
@@ -66,6 +67,7 @@ export interface CustomerOrder {
   orderNumber: string;
   trackingToken?: string;
   status: CustomerOrderStatus;
+  declineReason?: string;
   paymentMethod?: CustomerPaymentMethod;
   paymentStatus?: CustomerPaymentStatus;
   total: number;
