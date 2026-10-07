@@ -20,6 +20,7 @@ export interface AdminOverview {
     pendingOrders: number;
     tables: number;
     owners: number;
+    managers: number;
     staff: number;
   };
   recentRestaurants: AdminRestaurantSummary[];
@@ -41,7 +42,7 @@ export interface AdminUser {
   _id: string;
   name: string;
   email: string;
-  role: "restaurant_owner" | "restaurant_staff";
+  role: "restaurant_owner" | "restaurant_manager" | "restaurant_staff";
   restaurantId:
     | { _id: string; name: string; slug: string }
     | string

@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   Store,
   Users,
+  UserRoundCog,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -379,7 +380,7 @@ function HomePage() {
               </p>
             </div>
 
-            <div className="mt-16 grid gap-px bg-[#191815]/15 md:grid-cols-3">
+            <div className="mt-16 grid gap-px bg-[#191815]/15 md:grid-cols-2 xl:grid-cols-4">
               <AccessCard
                 icon={<ShieldCheck className="h-5 w-5" />}
                 eyebrow="Platform"
@@ -394,6 +395,14 @@ function HomePage() {
                 title="Owner"
                 description="Manage your restaurant, team, tables, menu, orders, and business settings."
                 href="/login"
+              />
+
+              <AccessCard
+                icon={<UserRoundCog className="h-5 w-5" />}
+                eyebrow="Restaurant"
+                title="Manager"
+                description="Coordinate daily orders, customer payments, tables, and bills."
+                href="/manager/login"
               />
 
               <AccessCard

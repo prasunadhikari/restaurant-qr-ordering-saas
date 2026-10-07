@@ -3,10 +3,12 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedOwnerRoute from "./components/restaurant/ProtectedOwnerRoute";
 import ProtectedStaffRoute from "./components/staff/ProtectedStaffRoute";
+import ProtectedManagerRoute from "./components/manager/ProtectedManagerRoute";
 
 import RestaurantLayout from "./layouts/RestaurantLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import StaffLayout from "./layouts/StaffLayout";
+import ManagerLayout from "./layouts/ManagerLayout";
 
 import HomePage from "./pages/HomePage";
 import SignInPage from "./pages/SignInPage";
@@ -27,6 +29,14 @@ import StaffLoginPage from "./pages/staff/StaffLoginPage";
 import StaffDashboardPage from "./pages/staff/StaffDashboardPage";
 import StaffOrdersPage from "./pages/staff/StaffOrdersPage";
 import StaffOrderDetailPage from "./pages/staff/StaffOrderDetailPage";
+import ManagerLoginPage from "./pages/manager/ManagerLoginPage";
+import ManagerDashboardPage from "./pages/manager/ManagerDashboardPage";
+import ManagerOrdersPage from "./pages/manager/ManagerOrdersPage";
+import ManagerMenuPage from "./pages/manager/ManagerMenuPage";
+import ManagerTablesPage from "./pages/manager/ManagerTablesPage";
+import ManagerBillsPage from "./pages/manager/ManagerBillsPage";
+import ManagerPaymentsPage from "./pages/manager/ManagerPaymentsPage";
+import ManagerManagementPage from "./pages/restaurant/ManagerManagementPage";
 
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -66,6 +76,19 @@ function App() {
             <Route path="/staff" element={<StaffDashboardPage />} />
             <Route path="/staff/orders" element={<StaffOrdersPage />} />
             <Route path="/staff/orders/:id" element={<StaffOrderDetailPage />} />
+          </Route>
+        </Route>
+
+        {/* Restaurant Manager */}
+        <Route path="/manager/login" element={<ManagerLoginPage />} />
+        <Route element={<ProtectedManagerRoute />}>
+          <Route element={<ManagerLayout />}>
+            <Route path="/manager" element={<ManagerDashboardPage />} />
+            <Route path="/manager/orders" element={<ManagerOrdersPage />} />
+            <Route path="/manager/menu" element={<ManagerMenuPage />} />
+            <Route path="/manager/tables" element={<ManagerTablesPage />} />
+            <Route path="/manager/bills" element={<ManagerBillsPage />} />
+            <Route path="/manager/payments" element={<ManagerPaymentsPage />} />
           </Route>
         </Route>
 
@@ -110,6 +133,10 @@ function App() {
             <Route
               path="/dashboard/staff"
               element={<StaffManagementPage />}
+            />
+            <Route
+              path="/dashboard/managers"
+              element={<ManagerManagementPage />}
             />
           </Route>
         </Route>

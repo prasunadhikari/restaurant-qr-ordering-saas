@@ -59,3 +59,23 @@ a {
   background: #a7f3d0;
   color: #064e3b;
 }
+
+@media print {
+  body:has(.manager-bill-print) * {
+    visibility: hidden !important;
+  }
+
+  .manager-bill-print,
+  .manager-bill-print * {
+    visibility: visible !important;
+  }
+
+  .manager-bill-print {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none !important;
+    padding: 2rem;
+    background: white;
+  }
+}

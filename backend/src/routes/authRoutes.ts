@@ -5,12 +5,14 @@ import {
   register,
   createDevelopmentAdmin,
   resetDevelopmentAdminPassword,
+  managerLogin,
 } from "../controllers/authController.js";
 
 const router = Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/manager/login", managerLogin);
 
 // Development only
 router.post("/dev-admin", createDevelopmentAdmin);

@@ -35,6 +35,15 @@ export interface RestaurantStaffMember {
   createdAt: string;
 }
 
+export interface RestaurantManagerMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: "restaurant_manager";
+  restaurantId: string;
+  createdAt: string;
+}
+
 export type OrderStatus =
   | "pending"
   | "accepted"
@@ -280,6 +289,20 @@ export const deleteRestaurantStaff = async (id: string): Promise<void> => {
   await authorized(`/restaurant/staff/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+};
+
+export const getRestaurantManagers = async (): Promise<RestaurantManagerMember[]> =>
+  (await authorized<{ managers: RestaurantManagerMember[] }>("/restaurant/managers")).managers;
+
+export const createRestaurantManager = async (value: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<RestaurantManagerMember> =>
+  (await authorized<{ manager: RestaurantManagerMember }>("/restaurant/managers", json(value))).manager;
+
+export const deleteRestaurantManager = async (id: string): Promise<void> => {
+  await authorized(`/restaurant/managers/${encodeURIComponent(id)}`, { method: "DELETE" });
 };
 
 export const getOrders = async (): Promise<RestaurantOrder[]> =>

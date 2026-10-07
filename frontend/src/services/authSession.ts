@@ -13,3 +13,9 @@ export const clearStaffSession = (): void => {
   localStorage.removeItem("staffUser");
   localStorage.removeItem("staffRestaurant");
 };
+
+export const clearManagerSession = (): void => {
+  localStorage.removeItem("managerToken");
+  localStorage.removeItem("managerUser");
+  localStorage.removeItem("managerRestaurant");
+};

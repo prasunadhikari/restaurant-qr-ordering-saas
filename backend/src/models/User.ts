@@ -5,7 +5,11 @@ export interface IUser extends Document {
   email: string;
   password: string;
 
-  role: "platform_admin" | "restaurant_owner" | "restaurant_staff";
+  role:
+    | "platform_admin"
+    | "restaurant_owner"
+    | "restaurant_manager"
+    | "restaurant_staff";
 
   restaurantId?: mongoose.Types.ObjectId;
 
@@ -40,6 +44,7 @@ const userSchema = new Schema<IUser>(
       enum: [
         "platform_admin",
         "restaurant_owner",
+        "restaurant_manager",
         "restaurant_staff",
       ],
       default: "restaurant_owner",

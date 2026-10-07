@@ -1,7 +1,13 @@
-import { ArrowRight, ShieldCheck, Store, UsersRound, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, ShieldCheck, Store, UserRoundCog, UsersRound, UtensilsCrossed } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const portals = [
+  {
+    title: "Restaurant Manager",
+    description: "Run daily restaurant operations, orders, payments, and bills.",
+    href: "/manager/login",
+    icon: UserRoundCog,
+  },
   {
     title: "Restaurant Owner",
     description: "Manage your restaurant, menu, tables, orders, and team.",
@@ -41,7 +47,7 @@ function SignInPage() {
           </p>
         </header>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {portals.map(({ title, description, href, icon: Icon }) => (
             <Link
               key={href}

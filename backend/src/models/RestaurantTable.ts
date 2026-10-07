@@ -7,6 +7,7 @@ export interface IRestaurantTable extends Document {
   capacity: number;
   qrToken: string;
   status: "available" | "occupied";
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +33,7 @@ const restaurantTableSchema = new Schema<IRestaurantTable>(
       enum: ["available", "occupied"],
       default: "available",
     },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

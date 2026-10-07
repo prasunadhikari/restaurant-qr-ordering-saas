@@ -34,7 +34,7 @@ function AdminDashboardPage() {
     { label: "Restaurants", value: stats?.restaurants, detail: `${stats?.activeRestaurants ?? 0} active`, icon: Store, tint: "bg-emerald-50 text-emerald-700" },
     { label: "Orders", value: stats?.orders, detail: `${stats?.pendingOrders ?? 0} awaiting action`, icon: Activity, tint: "bg-amber-50 text-amber-700" },
     { label: "Tables", value: stats?.tables, detail: "Across all restaurants", icon: Utensils, tint: "bg-sky-50 text-sky-700" },
-    { label: "Restaurant accounts", value: (stats?.owners ?? 0) + (stats?.staff ?? 0), detail: `${stats?.owners ?? 0} owners · ${stats?.staff ?? 0} staff`, icon: UsersRound, tint: "bg-violet-50 text-violet-700" },
+    { label: "Restaurant accounts", value: (stats?.owners ?? 0) + (stats?.managers ?? 0) + (stats?.staff ?? 0), detail: `${stats?.owners ?? 0} owners · ${stats?.managers ?? 0} managers · ${stats?.staff ?? 0} staff`, icon: UsersRound, tint: "bg-violet-50 text-violet-700" },
   ];
 
   return (

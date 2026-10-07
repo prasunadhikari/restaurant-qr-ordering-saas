@@ -9,7 +9,8 @@ export type OrderStatus =
   | "New"
   | "Preparing"
   | "Ready"
-  | "Served";
+  | "Served"
+  | "cancelled";
 
 export type OrderPaymentMethod = "cash" | "esewa" | "khalti" | "bank_qr";
 export type OrderPaymentStatus =
@@ -27,6 +28,7 @@ export interface IOrder extends Document {
   status: OrderStatus;
   paymentMethod?: OrderPaymentMethod;
   paymentStatus: OrderPaymentStatus;
+  declineReason?: string;
   items: Array<{
     menuItemId?: mongoose.Types.ObjectId;
     name: string;
@@ -68,6 +70,7 @@ const orderSchema = new Schema<IOrder>(
         "Preparing",
         "Ready",
         "Served",
+        "cancelled",
       ],
       default: "pending",
       index: true,
@@ -82,6 +85,7 @@ const orderSchema = new Schema<IOrder>(
       default: "unpaid",
       index: true,
     },
+    declineReason: { type: String, default: "", trim: true, maxlength: 500 },
     items: [
       {
         _id: false,

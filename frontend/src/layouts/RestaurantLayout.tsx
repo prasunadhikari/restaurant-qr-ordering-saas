@@ -11,6 +11,7 @@ import {
   Table2,
   User,
   UsersRound,
+  UserRoundCog,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -79,6 +80,11 @@ function RestaurantLayout() {
       label: "Staff",
       path: "/dashboard/staff",
       icon: UsersRound,
+    },
+    {
+      label: "Managers",
+      path: "/dashboard/managers",
+      icon: UserRoundCog,
     },
     {
       label: "Settings",

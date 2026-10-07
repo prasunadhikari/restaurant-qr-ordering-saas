@@ -11,6 +11,7 @@ import restaurantDataRoutes from "./routes/restaurantDataRoutes.js";
 import publicCustomerRoutes from "./routes/publicCustomerRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import managerRoutes from "./routes/managerRoutes.js";
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use("/api/restaurant", restaurantDataRoutes);
 app.use("/api/public", publicCustomerRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/manager", managerRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {

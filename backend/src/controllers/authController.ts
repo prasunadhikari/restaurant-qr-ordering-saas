@@ -168,6 +168,57 @@ export const login = async (
   }
 };
 
+export const managerLogin = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { email, password } = req.body ?? {};
+    if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
+      res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+      return;
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+      role: "restaurant_manager",
+    });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      res.status(401).json({ success: false, message: "Invalid email or password" });
+      return;
+    }
+    if (!user.restaurantId) {
+      res.status(403).json({
+        success: false,
+        message: "This manager account is not assigned to a restaurant",
+      });
+      return;
+    }
+
+    const token = generateToken(user._id.toString());
+    res.json({
+      success: true,
+      message: "Manager sign in successful",
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          restaurantId: user.restaurantId,
+        },
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("Manager login error:", error);
+    res.status(500).json({ success: false, message: "Failed to sign in" });
+  }
+};
+
 export const createDevelopmentAdmin = async (
   req: Request,
   res: Response,

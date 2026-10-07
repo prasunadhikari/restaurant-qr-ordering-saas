@@ -50,7 +50,7 @@ function AdminUsersPage() {
       <header>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Platform management</p>
         <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Users</h2>
-        <p className="mt-2 text-sm text-slate-500">Restaurant owners and staff accounts linked to the platform.</p>
+        <p className="mt-2 text-sm text-slate-500">Restaurant owners, managers, and staff accounts linked to the platform.</p>
       </header>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
       <Card padding="none">
@@ -62,6 +62,7 @@ function AdminUsersPage() {
           <select aria-label="Filter users by role" value={role} onChange={(event) => setRole(event.target.value)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700">
             <option value="all">All account types</option>
             <option value="restaurant_owner">Owners</option>
+            <option value="restaurant_manager">Managers</option>
             <option value="restaurant_staff">Staff</option>
           </select>
         </div>
@@ -88,7 +89,7 @@ function AdminUsersPage() {
                         <p className="text-sm font-semibold text-slate-900">{user.name}</p>
                         <p className="mt-0.5 text-xs text-slate-500">{user.email}</p>
                       </td>
-                      <td className="px-5 py-4"><Badge variant={user.role === "restaurant_owner" ? "info" : "default"}>{user.role === "restaurant_owner" ? "Owner" : "Staff"}</Badge></td>
+                      <td className="px-5 py-4"><Badge variant={user.role === "restaurant_owner" ? "info" : user.role === "restaurant_manager" ? "warning" : "default"}>{user.role === "restaurant_owner" ? "Owner" : user.role === "restaurant_manager" ? "Manager" : "Staff"}</Badge></td>
                       <td className="px-5 py-4 text-sm text-slate-700">{restaurant?.name ?? "Not assigned"}</td>
                       <td className="px-5 py-4 text-sm text-slate-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                     </tr>

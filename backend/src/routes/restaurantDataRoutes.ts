@@ -28,6 +28,11 @@ import {
   getRestaurantStaff,
   updateRestaurantStaff,
 } from "../controllers/restaurantStaffController.js";
+import {
+  createManager,
+  deleteRestaurantManager,
+  getRestaurantManagers,
+} from "../controllers/managerController.js";
 
 const router = Router();
 
@@ -37,6 +42,9 @@ router.get("/staff", restaurantOwnerMiddleware, getRestaurantStaff);
 router.post("/staff", restaurantOwnerMiddleware, createRestaurantStaff);
 router.patch("/staff/:id", restaurantOwnerMiddleware, updateRestaurantStaff);
 router.delete("/staff/:id", restaurantOwnerMiddleware, deleteRestaurantStaff);
+router.get("/managers", restaurantOwnerMiddleware, getRestaurantManagers);
+router.post("/managers", restaurantOwnerMiddleware, createManager);
+router.delete("/managers/:id", restaurantOwnerMiddleware, deleteRestaurantManager);
 
 router.get("/categories", getCategories);
 router.post("/categories", createCategory);

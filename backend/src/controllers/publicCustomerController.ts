@@ -92,6 +92,7 @@ const getPublicContext = async (
   const table = await RestaurantTable.findOne({
     restaurantId: restaurant._id,
     tableNumber: tableNumber.trim(),
+    isActive: { $ne: false },
   });
   return { restaurant, table };
 };
@@ -115,11 +116,14 @@ export const getPublicRestaurantMenu = async (
     }
 
     const [categories, items] = await Promise.all([
-      MenuCategory.find({ restaurantId: restaurant._id }).sort({
+      MenuCategory.find({ restaurantId: restaurant._id, isActive: { $ne: false } }).sort({
         sortOrder: 1,
         name: 1,
       }),
-      MenuItem.find({ restaurantId: restaurant._id })
+      MenuItem.find({
+        restaurantId: restaurant._id,
+        categoryId: { $in: (await MenuCategory.find({ restaurantId: restaurant._id, isActive: { $ne: false } }).select("_id")).map((category) => category._id) },
+      })
         .populate("categoryId", "name")
         .sort({ createdAt: -1 }),
     ]);

@@ -20,6 +20,7 @@ export const getAdminOverview = async (
       pendingOrders,
       tables,
       owners,
+      managers,
       staff,
       recentRestaurants,
     ] = await Promise.all([
@@ -31,6 +32,7 @@ export const getAdminOverview = async (
       Order.countDocuments({ status: { $in: ["pending", "New"] } }),
       RestaurantTable.countDocuments(),
       User.countDocuments({ role: "restaurant_owner" }),
+      User.countDocuments({ role: "restaurant_manager" }),
       User.countDocuments({ role: "restaurant_staff" }),
       Restaurant.find()
         .select("name slug address status plan createdAt")
@@ -50,6 +52,7 @@ export const getAdminOverview = async (
           pendingOrders,
           tables,
           owners,
+          managers,
           staff,
         },
         recentRestaurants,
@@ -91,7 +94,7 @@ export const getAdminUsers = async (
 ): Promise<void> => {
   try {
     const users = await User.find({
-      role: { $in: ["restaurant_owner", "restaurant_staff"] },
+      role: { $in: ["restaurant_owner", "restaurant_manager", "restaurant_staff"] },
     })
       .select("name email role restaurantId createdAt")
       .populate("restaurantId", "name slug")

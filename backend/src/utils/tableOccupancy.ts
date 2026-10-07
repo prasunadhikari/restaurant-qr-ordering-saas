@@ -10,7 +10,7 @@ export const syncTableOccupancy = async (
   const hasUnservedOrder = await Order.exists({
     tableId,
     restaurantId,
-    status: { $nin: ["served", "Served"] },
+    status: { $nin: ["served", "Served", "cancelled"] },
   });
 
   await RestaurantTable.updateOne(
