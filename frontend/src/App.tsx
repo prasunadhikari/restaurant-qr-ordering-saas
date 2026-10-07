@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
+import ProtectedOwnerRoute from "./components/restaurant/ProtectedOwnerRoute";
 
 import RestaurantLayout from "./layouts/RestaurantLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -8,6 +9,8 @@ import AdminLayout from "./layouts/AdminLayout";
 import HomePage from "./pages/HomePage";
 
 import RestaurantMenuPage from "./pages/customer/RestaurantMenuPage";
+
+import OwnerLoginPage from "./pages/restaurant/OwnerLoginPage";
 
 import DashboardPage from "./pages/restaurant/DashboardPage";
 import OrdersPage from "./pages/restaurant/OrdersPage";
@@ -39,42 +42,50 @@ function App() {
           element={<RestaurantMenuPage />}
         />
 
-        {/* Restaurant Dashboard */}
-        <Route element={<RestaurantLayout />}>
-          <Route
-            path="/dashboard"
-            element={<DashboardPage />}
-          />
+        {/* Restaurant Owner Login */}
+        <Route
+          path="/login"
+          element={<OwnerLoginPage />}
+        />
 
-          <Route
-            path="/dashboard/orders"
-            element={<OrdersPage />}
-          />
+        {/* Protected Restaurant Owner Dashboard */}
+        <Route element={<ProtectedOwnerRoute />}>
+          <Route element={<RestaurantLayout />}>
+            <Route
+              path="/dashboard"
+              element={<DashboardPage />}
+            />
 
-          <Route
-            path="/dashboard/menu"
-            element={<MenuPage />}
-          />
+            <Route
+              path="/dashboard/orders"
+              element={<OrdersPage />}
+            />
 
-          <Route
-            path="/dashboard/tables"
-            element={<TablesPage />}
-          />
+            <Route
+              path="/dashboard/menu"
+              element={<MenuPage />}
+            />
 
-          <Route
-            path="/dashboard/qr"
-            element={<QRPage />}
-          />
+            <Route
+              path="/dashboard/tables"
+              element={<TablesPage />}
+            />
 
-          <Route
-            path="/dashboard/analytics"
-            element={<AnalyticsPage />}
-          />
+            <Route
+              path="/dashboard/qr"
+              element={<QRPage />}
+            />
 
-          <Route
-            path="/dashboard/settings"
-            element={<SettingsPage />}
-          />
+            <Route
+              path="/dashboard/analytics"
+              element={<AnalyticsPage />}
+            />
+
+            <Route
+              path="/dashboard/settings"
+              element={<SettingsPage />}
+            />
+          </Route>
         </Route>
 
         {/* Platform Admin Login */}

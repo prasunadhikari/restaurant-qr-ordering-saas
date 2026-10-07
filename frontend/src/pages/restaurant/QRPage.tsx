@@ -1,39 +1,60 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
+import {
+  getRestaurantSettings,
+  getTables,
+} from "../../services/restaurantDashboardService";
+import type { RestaurantTable } from "../../services/restaurantDashboardService";
 
-type RestaurantTable = {
-  id: string;
-  tableNumber: string;
-  capacity: number;
-  qrToken?: string;
-};
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character] || character);
 
 function QRPage() {
+  const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [restaurantSlug, setRestaurantSlug] = useState("");
   const [search, setSearch] = useState("");
 
   const [selectedTable, setSelectedTable] =
     useState<RestaurantTable | null>(null);
 
-  // Real table data will come from the restaurant API.
-  const tables: RestaurantTable[] = [];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const restaurantSlug = "";
+  useEffect(() => {
+    void Promise.all([getTables(), getRestaurantSettings()])
+      .then(([restaurantTables, restaurant]) => {
+        setTables(restaurantTables);
+        setRestaurantSlug(restaurant.slug);
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load restaurant QR codes:", err);
+        setError(err instanceof Error ? err.message : "Unable to load QR codes.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const getCustomerUrl = (tableNumber: string) => {
     if (!restaurantSlug) {
-      return `/r/[restaurant-slug]/t/${tableNumber}`;
+      return "";
     }
 
+    const customerPath = `/r/${encodeURIComponent(restaurantSlug)}/t/${encodeURIComponent(tableNumber)}`;
     if (typeof window === "undefined") {
-      return `/r/${restaurantSlug}/t/${tableNumber}`;
+      return customerPath;
     }
 
-    return `${window.location.origin}/r/${restaurantSlug}/t/${tableNumber}`;
+    return `${window.location.origin}${customerPath}`;
   };
 
   const filteredTables = useMemo(() => {
@@ -49,7 +70,7 @@ function QRPage() {
   }, [search, tables]);
 
   const downloadQR = (table: RestaurantTable) => {
-    const svg = document.getElementById(`qr-${table.id}`);
+    const svg = document.getElementById(`qr-${table._id}`);
 
     if (!svg) {
       return;
@@ -80,13 +101,15 @@ function QRPage() {
   const printQR = (table: RestaurantTable) => {
     const customerUrl = getCustomerUrl(table.tableNumber);
 
-    const svg = document.getElementById(`qr-${table.id}`);
+    const svg = document.getElementById(`qr-${table._id}`);
 
     if (!svg) {
       return;
     }
 
     const svgData = new XMLSerializer().serializeToString(svg);
+    const safeTableNumber = escapeHtml(table.tableNumber);
+    const safeCustomerUrl = escapeHtml(customerUrl);
 
     const svgBase64 = window.btoa(
       unescape(encodeURIComponent(svgData)),
@@ -99,6 +122,7 @@ function QRPage() {
     );
 
     if (!printWindow) {
+      setError("Allow pop-ups to print a table QR code.");
       return;
     }
 
@@ -106,7 +130,7 @@ function QRPage() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Table ${table.tableNumber} QR Code</title>
+          <title>Table ${safeTableNumber} QR Code</title>
 
           <style>
             * {
@@ -182,7 +206,7 @@ function QRPage() {
           <div class="card">
             <h1>Restaurant QR Menu</h1>
 
-            <h2>Table ${table.tableNumber}</h2>
+            <h2>Table ${safeTableNumber}</h2>
 
             <img
               src="data:image/svg+xml;base64,${svgBase64}"
@@ -195,7 +219,7 @@ function QRPage() {
             </p>
 
             <div class="url">
-              ${customerUrl}
+              ${safeCustomerUrl}
             </div>
           </div>
 
@@ -211,8 +235,13 @@ function QRPage() {
     printWindow.document.close();
   };
 
+  if (loading) {
+    return <Card><p className="text-sm text-slate-500">Loading table QR codes…</p></Card>;
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {/* Heading */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -293,9 +322,7 @@ function QRPage() {
             </h3>
 
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-slate-500">
-              QR codes will appear here automatically after
-              restaurant tables are created and connected to
-              the database.
+              Create restaurant tables on the Tables page and their QR codes will appear here.
             </p>
 
             <div className="mx-auto mt-6 max-w-lg rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
@@ -308,9 +335,7 @@ function QRPage() {
                 Scanning the QR code will open:
               </p>
 
-              <code className="mt-3 block break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
-                /r/[restaurant-slug]/t/[table-number]
-              </code>
+              <code className="mt-3 block break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-600">/r/{restaurantSlug || "restaurant"}/t/[table-number]</code>
             </div>
           </div>
         </Card>
@@ -323,7 +348,7 @@ function QRPage() {
 
             return (
               <Card
-                key={table.id}
+                key={table._id}
                 padding="none"
                 className="overflow-hidden"
               >
@@ -348,7 +373,7 @@ function QRPage() {
                 <div className="flex justify-center bg-slate-50 px-5 py-6">
                   <div className="rounded-2xl bg-white p-4 shadow-sm">
                     <QRCodeSVG
-                      id={`qr-${table.id}`}
+                      id={`qr-${table._id}`}
                       value={customerUrl}
                       size={180}
                       level="H"
@@ -420,32 +445,6 @@ function QRPage() {
           })}
         </div>
       )}
-
-      {/* Backend connection note */}
-      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-        <div className="flex gap-3">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm">
-            i
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              QR data is not connected yet
-            </p>
-
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              This page is now free of demo restaurant and table
-              data. Once the Table API is connected, QR codes
-              will be generated from real restaurant records and
-              each code will point to its restaurant and table.
-            </p>
-
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              Planned API: GET /api/tables
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Preview modal */}
       {selectedTable && (

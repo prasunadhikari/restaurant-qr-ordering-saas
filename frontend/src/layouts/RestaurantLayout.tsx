@@ -87,6 +87,19 @@ function RestaurantLayout() {
         setLoading(true);
         setError("");
 
+        const ownerToken =
+          localStorage.getItem("ownerToken");
+
+        if (!ownerToken) {
+          throw new Error(
+            "Authentication required. Please log in again.",
+          );
+        }
+
+        const authHeaders = {
+          Authorization: `Bearer ${ownerToken}`,
+        };
+
         const [restaurantData, userData] =
           await Promise.all([
             apiRequest<{
@@ -96,9 +109,12 @@ function RestaurantLayout() {
               };
             }>("/restaurants/me", {
               method: "GET",
+              headers: authHeaders,
             }),
+
             apiRequest<UserResponse>("/users/me", {
               method: "GET",
+              headers: authHeaders,
             }),
           ]);
 
@@ -444,7 +460,6 @@ function RestaurantLayout() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Restaurant status */}
             {!loading && restaurant && (
               <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 sm:flex">
                 <span

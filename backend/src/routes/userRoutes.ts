@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  getCurrentUser,
   getRestaurantOwners,
   createRestaurantOwner,
   updateRestaurantOwner,
@@ -11,6 +12,14 @@ import adminMiddleware from "../middleware/adminMiddleware.js";
 
 const router = Router();
 
+// Get the currently authenticated user
+router.get(
+  "/me",
+  authMiddleware,
+  getCurrentUser,
+);
+
+// Platform admin: restaurant owners
 router.get(
   "/restaurant-owners",
   authMiddleware,

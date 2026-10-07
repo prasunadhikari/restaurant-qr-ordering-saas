@@ -1,322 +1,184 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Table2, Trash2 } from "lucide-react";
 
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
-
-type TableStatus = "available" | "occupied";
-
-type RestaurantTable = {
-  id: string;
-  tableNumber: string;
-  capacity: number;
-  status: TableStatus;
-  currentOrder?: string;
-};
+import {
+  createTable,
+  deleteTable,
+  getTables,
+  updateTable,
+} from "../../services/restaurantDashboardService";
+import type { RestaurantTable } from "../../services/restaurantDashboardService";
 
 function TablesPage() {
-  // Real table data will come from the restaurant API.
-  // Keeping this empty prevents demo data from being shown.
-  const tables: RestaurantTable[] = [];
-
+  const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [tableNumber, setTableNumber] = useState("");
+  const [capacity, setCapacity] = useState("2");
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "available" | "occupied">("all");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const [activeFilter, setActiveFilter] =
-    useState<"all" | TableStatus>("all");
+  useEffect(() => {
+    let active = true;
+    void getTables()
+      .then((data) => {
+        if (active) setTables(data);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        console.error("Failed to load restaurant tables:", err);
+        setError(err instanceof Error ? err.message : "Unable to load tables.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const filteredTables = useMemo(() => {
+  const visibleTables = useMemo(() => {
     const query = search.trim().toLowerCase();
+    return tables.filter((table) =>
+      (filter === "all" || table.status === filter) &&
+      (!query || table.tableNumber.toLowerCase().includes(query)),
+    );
+  }, [tables, search, filter]);
 
-    return tables.filter((table) => {
-      const matchesSearch =
-        !query ||
-        table.tableNumber.toLowerCase().includes(query) ||
-        table.currentOrder?.toLowerCase().includes(query);
+  const addTable = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const table = await createTable({
+        tableNumber: tableNumber.trim(),
+        capacity: Number(capacity),
+      });
+      setTables((current) => [...current, table].sort((a, b) => a.tableNumber.localeCompare(b.tableNumber)));
+      setTableNumber("");
+      setCapacity("2");
+    } catch (err) {
+      console.error("Failed to create restaurant table:", err);
+      setError(err instanceof Error ? err.message : "Unable to create table.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      const matchesFilter =
-        activeFilter === "all" ||
-        table.status === activeFilter;
+  const toggleStatus = async (table: RestaurantTable) => {
+    try {
+      const updated = await updateTable(table._id, {
+        status: table.status === "occupied" ? "available" : "occupied",
+      });
+      setTables((current) => current.map((entry) => entry._id === updated._id ? updated : entry));
+    } catch (err) {
+      console.error("Failed to update table status:", err);
+      setError(err instanceof Error ? err.message : "Unable to update table.");
+    }
+  };
 
-      return matchesSearch && matchesFilter;
-    });
-  }, [tables, search, activeFilter]);
+  const editTable = async (table: RestaurantTable) => {
+    const nextNumber = window.prompt("Table number", table.tableNumber);
+    if (nextNumber === null) return;
+    const nextCapacity = window.prompt("Seating capacity", String(table.capacity));
+    if (nextCapacity === null) return;
+    try {
+      const updated = await updateTable(table._id, {
+        tableNumber: nextNumber.trim(),
+        capacity: Number(nextCapacity),
+      });
+      setTables((current) => current.map((entry) => entry._id === updated._id ? updated : entry));
+    } catch (err) {
+      console.error("Failed to edit restaurant table:", err);
+      setError(err instanceof Error ? err.message : "Unable to edit table.");
+    }
+  };
 
-  const occupiedCount = tables.filter(
-    (table) => table.status === "occupied",
-  ).length;
+  const removeTable = async (table: RestaurantTable) => {
+    if (!window.confirm(`Delete table ${table.tableNumber}?`)) return;
+    try {
+      await deleteTable(table._id);
+      setTables((current) => current.filter((entry) => entry._id !== table._id));
+    } catch (err) {
+      console.error("Failed to delete restaurant table:", err);
+      setError(err instanceof Error ? err.message : "Unable to delete table.");
+    }
+  };
 
-  const availableCount = tables.filter(
-    (table) => table.status === "available",
-  ).length;
+  if (loading) return <Card><p className="text-sm text-slate-500">Loading tables…</p></Card>;
+
+  const availableCount = tables.filter((table) => table.status === "available").length;
+  const occupiedCount = tables.length - availableCount;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      {/* Heading */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm text-slate-500">
-            Restaurant floor
-          </p>
-
-          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            Tables
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Manage restaurant tables and monitor their current status.
-          </p>
-        </div>
-
-        <Button
-          type="button"
-          disabled
-        >
-          + Add table
-        </Button>
+      <div>
+        <p className="text-sm text-slate-500">Restaurant floor</p>
+        <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Tables</h2>
+        <p className="mt-1 text-sm text-slate-500">Manage table capacity, availability, and QR codes.</p>
       </div>
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      {/* Summary */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <p className="text-sm font-medium text-slate-500">
-            Total tables
-          </p>
-
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {tables.length}
-          </p>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500">
-              Available
-            </p>
-
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-          </div>
-
-          <p className="mt-2 text-2xl font-bold text-emerald-600">
-            {availableCount}
-          </p>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500">
-              Occupied
-            </p>
-
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-          </div>
-
-          <p className="mt-2 text-2xl font-bold text-amber-600">
-            {occupiedCount}
-          </p>
-        </Card>
+        <Card><p className="text-sm text-slate-500">Total tables</p><p className="mt-2 text-2xl font-bold">{tables.length}</p></Card>
+        <Card><p className="text-sm text-slate-500">Available</p><p className="mt-2 text-2xl font-bold text-emerald-600">{availableCount}</p></Card>
+        <Card><p className="text-sm text-slate-500">Occupied</p><p className="mt-2 text-2xl font-bold text-amber-600">{occupiedCount}</p></Card>
       </div>
 
-      {/* Controls */}
-      <Card padding="sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="w-full lg:max-w-sm">
-            <Input
-              id="table-search"
-              placeholder="Search table number or order..."
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-            />
-          </div>
+      <Card>
+        <h3 className="font-bold text-slate-900">Add a table</h3>
+        <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={addTable}>
+          <Input id="table-number" label="Table number or name" required value={tableNumber} onChange={(event) => setTableNumber(event.target.value)} />
+          <Input id="table-capacity" label="Seating capacity" type="number" min="1" step="1" required value={capacity} onChange={(event) => setCapacity(event.target.value)} />
+          <div className="self-end"><Button type="submit" disabled={saving}><Plus size={16} /> Add table</Button></div>
+        </form>
+      </Card>
 
-          <div className="flex gap-2 overflow-x-auto">
-            {[
-              { label: "All", value: "all" },
-              { label: "Available", value: "available" },
-              { label: "Occupied", value: "occupied" },
-            ].map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() =>
-                  setActiveFilter(
-                    filter.value as "all" | TableStatus,
-                  )
-                }
-                className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                  activeFilter === filter.value
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {filter.label}
-              </button>
+      <Card padding="sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <input
+            aria-label="Search tables"
+            placeholder="Search table number…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm sm:max-w-sm"
+          />
+          <div className="flex gap-2">
+            {(["all", "available", "occupied"] as const).map((value) => (
+              <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize ${filter === value ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>{value}</button>
             ))}
           </div>
         </div>
       </Card>
 
-      {/* Table grid */}
-      {filteredTables.length === 0 ? (
-        <Card>
-          <div className="py-12 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
-              ▦
-            </div>
-
-            <h3 className="mt-4 font-bold text-slate-900">
-              No tables available
-            </h3>
-
-            <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-slate-500">
-              Your restaurant does not have any tables connected
-              yet. Tables will appear here once they are created
-              through the restaurant management system.
-            </p>
-
-            <div className="mx-auto mt-6 max-w-md rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Table system
-              </p>
-
-              <p className="mt-1 text-sm text-slate-600">
-                MongoDB table records, QR tokens, availability,
-                capacity, and live order status will be connected
-                here.
-              </p>
-            </div>
-          </div>
-        </Card>
+      {visibleTables.length === 0 ? (
+        <Card><div className="py-12 text-center"><Table2 className="mx-auto text-slate-300" size={30} /><h3 className="mt-4 font-bold text-slate-900">No tables found</h3><p className="mt-1 text-sm text-slate-500">Add tables above to create restaurant QR codes.</p></div></Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {filteredTables.map((table) => (
-            <Card
-              key={table.id}
-              padding="none"
-              className={`overflow-hidden border-t-4 ${
-                table.status === "occupied"
-                  ? "border-t-amber-400"
-                  : "border-t-emerald-400"
-              }`}
-            >
+          {visibleTables.map((table) => (
+            <Card key={table._id} padding="none" className={`overflow-hidden border-t-4 ${table.status === "occupied" ? "border-t-amber-400" : "border-t-emerald-400"}`}>
               <div className="p-5">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                      Table
-                    </p>
-
-                    <h3 className="mt-1 text-3xl font-bold text-slate-900">
-                      {table.tableNumber}
-                    </h3>
-                  </div>
-
-                  <Badge
-                    variant={
-                      table.status === "occupied"
-                        ? "warning"
-                        : "success"
-                    }
-                  >
-                    {table.status === "occupied"
-                      ? "Occupied"
-                      : "Available"}
-                  </Badge>
+                  <div><p className="text-xs font-medium uppercase tracking-wider text-slate-400">Table</p><h3 className="mt-1 text-3xl font-bold text-slate-900">{table.tableNumber}</h3></div>
+                  <Badge variant={table.status === "occupied" ? "warning" : "success"}>{table.status}</Badge>
                 </div>
-
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">
-                      Capacity
-                    </span>
-
-                    <span className="font-semibold text-slate-700">
-                      {table.capacity}{" "}
-                      {table.capacity === 1
-                        ? "person"
-                        : "people"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">
-                      QR status
-                    </span>
-
-                    <span className="font-semibold text-emerald-600">
-                      Active
-                    </span>
-                  </div>
-
-                  {table.currentOrder && (
-                    <div className="rounded-xl bg-amber-50 px-3 py-2.5">
-                      <p className="text-xs text-amber-600">
-                        Current order
-                      </p>
-
-                      <p className="mt-0.5 text-sm font-bold text-amber-800">
-                        {table.currentOrder}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
+                <p className="mt-4 text-sm text-slate-500">Seats {table.capacity}</p>
+                <p className="mt-1 text-xs text-slate-400">Unique QR code ready</p>
                 <div className="mt-5 grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                  >
-                    QR Code
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant={
-                      table.status === "occupied"
-                        ? "secondary"
-                        : "primary"
-                    }
-                    size="sm"
-                  >
-                    {table.status === "occupied"
-                      ? "Free table"
-                      : "Occupy"}
-                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void editTable(table)}>Edit</Button>
+                  <Button type="button" variant={table.status === "occupied" ? "secondary" : "primary"} size="sm" onClick={() => void toggleStatus(table)}>{table.status === "occupied" ? "Free table" : "Occupy"}</Button>
                 </div>
+                <button type="button" onClick={() => void removeTable(table)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700"><Trash2 size={13} /> Delete table</button>
               </div>
             </Card>
           ))}
         </div>
       )}
-
-      {/* Backend connection note */}
-      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-        <div className="flex gap-3">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm">
-            i
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              Table data is not connected yet
-            </p>
-
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              This page is now free of demo table data. The next
-              backend step will connect real restaurant tables
-              from MongoDB, including table numbers, capacity,
-              QR tokens, availability, and active orders.
-            </p>
-
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              Planned API: GET /api/tables
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

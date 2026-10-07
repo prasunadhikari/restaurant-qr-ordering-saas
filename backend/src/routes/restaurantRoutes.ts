@@ -4,6 +4,7 @@ import {
   createRestaurant,
   createRestaurantAsAdmin,
   getMyRestaurant,
+  updateMyRestaurant,
   getAllRestaurants,
   getRestaurantById,
   updateRestaurantAsAdmin,
@@ -38,6 +39,12 @@ router.get(
   "/me",
   authMiddleware,
   getMyRestaurant,
+);
+
+router.put(
+  "/me",
+  authMiddleware,
+  updateMyRestaurant,
 );
 
 // Get all restaurants for the admin dashboard

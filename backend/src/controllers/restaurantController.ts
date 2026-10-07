@@ -272,6 +272,131 @@ export const getMyRestaurant = async (
   }
 };
 
+export const updateMyRestaurant = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (
+      !req.user ||
+      !req.user.restaurantId ||
+      !["restaurant_owner", "restaurant_staff"].includes(req.user.role)
+    ) {
+      res.status(403).json({
+        success: false,
+        message: "Restaurant account access required",
+      });
+      return;
+    }
+
+    const restaurant = await Restaurant.findById(req.user.restaurantId);
+    if (!restaurant) {
+      res.status(404).json({
+        success: false,
+        message: "Restaurant not found",
+      });
+      return;
+    }
+
+    const {
+      name,
+      slug,
+      logo,
+      coverImage,
+      phone,
+      address,
+      restaurantType,
+      openingHours,
+      acceptingOrders,
+    } = req.body;
+
+    if (name !== undefined) {
+      if (typeof name !== "string" || !name.trim()) {
+        res.status(400).json({
+          success: false,
+          message: "Restaurant name is required",
+        });
+        return;
+      }
+      restaurant.name = name.trim();
+    }
+
+    if (slug !== undefined) {
+      if (typeof slug !== "string" || !slug.trim()) {
+        res.status(400).json({
+          success: false,
+          message: "Restaurant slug is required",
+        });
+        return;
+      }
+      const normalizedSlug = slug
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+      const existingRestaurant = await Restaurant.findOne({
+        slug: normalizedSlug,
+        _id: { $ne: restaurant._id },
+      });
+      if (existingRestaurant) {
+        res.status(409).json({
+          success: false,
+          message: "This restaurant slug is already in use",
+        });
+        return;
+      }
+      restaurant.slug = normalizedSlug;
+    }
+
+    for (const field of [
+      "logo",
+      "coverImage",
+      "phone",
+      "address",
+      "restaurantType",
+    ] as const) {
+      if (typeof req.body[field] === "string") {
+        restaurant[field] = req.body[field].trim();
+      }
+    }
+
+    if (openingHours !== undefined) {
+      if (
+        typeof openingHours?.open !== "string" ||
+        typeof openingHours?.close !== "string" ||
+        !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(openingHours.open) ||
+        !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(openingHours.close)
+      ) {
+        res.status(400).json({
+          success: false,
+          message: "Valid opening and closing times are required",
+        });
+        return;
+      }
+      restaurant.openingHours = {
+        open: openingHours.open,
+        close: openingHours.close,
+      };
+    }
+
+    if (typeof acceptingOrders === "boolean") {
+      restaurant.acceptingOrders = acceptingOrders;
+    }
+
+    await restaurant.save();
+    res.json({
+      success: true,
+      message: "Restaurant settings updated",
+      data: { restaurant },
+    });
+  } catch (error) {
+    console.error("Update my restaurant error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update restaurant settings",
+    });
+  }
+};
+
 
 /*
 |--------------------------------------------------------------------------

@@ -1,0 +1,198 @@
+import { apiRequest } from "./api";
+import type { Restaurant } from "./restaurantService";
+
+export interface MenuCategory {
+  _id: string;
+  name: string;
+  description: string;
+  sortOrder: number;
+}
+
+export interface MenuItem {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  image: string;
+  available: boolean;
+  categoryId: { _id: string; name: string } | string;
+}
+
+export interface RestaurantTable {
+  _id: string;
+  tableNumber: string;
+  capacity: number;
+  qrToken: string;
+  status: "available" | "occupied";
+}
+
+export type OrderStatus = "New" | "Preparing" | "Ready" | "Served";
+
+export interface RestaurantOrder {
+  _id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  total: number;
+  createdAt: string;
+  items: Array<{ name: string; quantity: number; unitPrice: number }>;
+  tableId: { _id: string; tableNumber: string } | string;
+}
+
+export interface RestaurantAnalytics {
+  summary: {
+    todayRevenue: number;
+    todayOrders: number;
+    totalTables: number;
+    occupiedTables: number;
+    pendingOrders: number;
+    weekRevenue: number;
+    weekOrders: number;
+  };
+  dailyRevenue: Array<{ day: string; revenue: number; orders: number }>;
+  topDishes: Array<{ name: string; orders: number; revenue: number }>;
+  busyHours: Array<{ time: string; orders: number }>;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+const authorized = async <T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> => {
+  const token = localStorage.getItem("ownerToken");
+  if (!token) {
+    throw new Error("Authentication required. Please log in again.");
+  }
+
+  const response = await apiRequest<ApiResponse<T>>(endpoint, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+  return response.data;
+};
+
+const json = (value: unknown): RequestInit => ({
+  method: "POST",
+  body: JSON.stringify(value),
+});
+
+export const getRestaurantSettings = async (): Promise<Restaurant> =>
+  (await authorized<{ restaurant: Restaurant }>("/restaurants/me")).restaurant;
+
+export const updateRestaurantSettings = async (
+  value: Partial<Restaurant> & {
+    restaurantType?: string;
+    acceptingOrders?: boolean;
+  },
+): Promise<Restaurant> =>
+  (
+    await authorized<{ restaurant: Restaurant }>("/restaurants/me", {
+      method: "PUT",
+      body: JSON.stringify(value),
+    })
+  ).restaurant;
+
+export const getMenuData = async (): Promise<{
+  categories: MenuCategory[];
+  items: MenuItem[];
+}> => {
+  const [categories, items] = await Promise.all([
+    authorized<{ categories: MenuCategory[] }>("/restaurant/categories"),
+    authorized<{ items: MenuItem[] }>("/restaurant/menu"),
+  ]);
+  return { categories: categories.categories, items: items.items };
+};
+
+export const createCategory = async (
+  value: Pick<MenuCategory, "name" | "description">,
+): Promise<MenuCategory> =>
+  (await authorized<{ category: MenuCategory }>("/restaurant/categories", json(value)))
+    .category;
+
+export const updateCategory = async (
+  id: string,
+  value: Partial<Pick<MenuCategory, "name" | "description">>,
+): Promise<MenuCategory> =>
+  (
+    await authorized<{ category: MenuCategory }>(
+      `/restaurant/categories/${id}`,
+      { method: "PATCH", body: JSON.stringify(value) },
+    )
+  ).category;
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  await authorized(`/restaurant/categories/${id}`, { method: "DELETE" });
+};
+
+export const createMenuItem = async (
+  value: Omit<MenuItem, "_id" | "categoryId"> & { categoryId: string },
+): Promise<MenuItem> =>
+  (await authorized<{ item: MenuItem }>("/restaurant/menu", json(value))).item;
+
+export const addCatalogMenuItems = async (
+  items: Array<{ name: string; category: string; price: number }>,
+): Promise<{ added: number; skipped: number }> =>
+  authorized<{ added: number; skipped: number }>("/restaurant/menu/catalog", json({ items }));
+
+export const updateMenuItem = async (
+  id: string,
+  value: Partial<Omit<MenuItem, "_id" | "categoryId">> & { categoryId?: string },
+): Promise<MenuItem> =>
+  (
+    await authorized<{ item: MenuItem }>(`/restaurant/menu/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(value),
+    })
+  ).item;
+
+export const deleteMenuItem = async (id: string): Promise<void> => {
+  await authorized(`/restaurant/menu/${id}`, { method: "DELETE" });
+};
+
+export const getTables = async (): Promise<RestaurantTable[]> =>
+  (await authorized<{ tables: RestaurantTable[] }>("/restaurant/tables")).tables;
+
+export const createTable = async (
+  value: Pick<RestaurantTable, "tableNumber" | "capacity">,
+): Promise<RestaurantTable> =>
+  (await authorized<{ table: RestaurantTable }>("/restaurant/tables", json(value)))
+    .table;
+
+export const updateTable = async (
+  id: string,
+  value: Partial<Pick<RestaurantTable, "tableNumber" | "capacity" | "status">>,
+): Promise<RestaurantTable> =>
+  (
+    await authorized<{ table: RestaurantTable }>(`/restaurant/tables/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(value),
+    })
+  ).table;
+
+export const deleteTable = async (id: string): Promise<void> => {
+  await authorized(`/restaurant/tables/${id}`, { method: "DELETE" });
+};
+
+export const getOrders = async (): Promise<RestaurantOrder[]> =>
+  (await authorized<{ orders: RestaurantOrder[] }>("/restaurant/orders")).orders;
+
+export const updateOrderStatus = async (
+  id: string,
+  status: OrderStatus,
+): Promise<RestaurantOrder> =>
+  (
+    await authorized<{ order: RestaurantOrder }>(
+      `/restaurant/orders/${id}/status`,
+      { method: "PATCH", body: JSON.stringify({ status }) },
+    )
+  ).order;
+
+export const getRestaurantAnalytics = async (): Promise<RestaurantAnalytics> =>
+  (await authorized<RestaurantAnalytics>("/restaurant/analytics"));

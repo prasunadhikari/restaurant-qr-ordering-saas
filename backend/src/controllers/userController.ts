@@ -6,8 +6,59 @@ import Restaurant from "../models/Restaurant.js";
 
 type AuthenticatedRequest = Request & {
   user?: {
+    id?: string;
+    name?: string;
+    email?: string;
     role?: string;
+    restaurantId?: string;
   };
+};
+
+export const getCurrentUser = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+
+      return;
+    }
+
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          restaurantId: user.restaurantId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get current user error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to load current user",
+    });
+  }
 };
 
 export const getRestaurantOwners = async (

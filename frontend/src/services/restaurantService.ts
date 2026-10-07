@@ -14,6 +14,8 @@ export interface Restaurant {
   coverImage: string;
   phone: string;
   address: string;
+  restaurantType?: string;
+  acceptingOrders?: boolean;
 
   openingHours?: {
     open: string;

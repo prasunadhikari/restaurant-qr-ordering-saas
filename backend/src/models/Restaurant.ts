@@ -7,6 +7,8 @@ export interface IRestaurant extends Document {
   coverImage?: string;
   phone?: string;
   address?: string;
+  restaurantType?: string;
+  acceptingOrders: boolean;
 
   openingHours?: {
     open: string;
@@ -58,6 +60,17 @@ const restaurantSchema = new Schema<IRestaurant>(
       type: String,
       default: "",
       trim: true,
+    },
+
+    restaurantType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    acceptingOrders: {
+      type: Boolean,
+      default: true,
     },
 
     openingHours: {
