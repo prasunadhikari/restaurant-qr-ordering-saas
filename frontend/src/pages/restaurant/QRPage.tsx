@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { Download, Printer, QrCode, Search, Sparkles, X } from "lucide-react";
 
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
@@ -9,7 +10,11 @@ import {
   getRestaurantSettings,
   getTables,
 } from "../../services/restaurantDashboardService";
-import type { RestaurantTable } from "../../services/restaurantDashboardService";
+import type {
+  RestaurantTable,
+} from "../../services/restaurantDashboardService";
+import { resolveMediaUrl } from "../../services/api";
+import type { Restaurant } from "../../services/restaurantService";
 
 const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (character) => ({
@@ -22,423 +27,390 @@ const escapeHtml = (value: string) =>
 
 function QRPage() {
   const [tables, setTables] = useState<RestaurantTable[]>([]);
-  const [restaurantSlug, setRestaurantSlug] = useState("");
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [search, setSearch] = useState("");
-
-  const [selectedTable, setSelectedTable] =
-    useState<RestaurantTable | null>(null);
-
+  const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     void Promise.all([getTables(), getRestaurantSettings()])
-      .then(([restaurantTables, restaurant]) => {
+      .then(([restaurantTables, settings]) => {
         setTables(restaurantTables);
-        setRestaurantSlug(restaurant.slug);
+        setRestaurant(settings);
       })
-      .catch((err: unknown) => {
-        console.error("Failed to load restaurant QR codes:", err);
-        setError(err instanceof Error ? err.message : "Unable to load QR codes.");
+      .catch((cause: unknown) => {
+        console.error("Failed to load restaurant QR codes:", cause);
+        setError(cause instanceof Error ? cause.message : "Unable to load QR codes.");
       })
       .finally(() => setLoading(false));
   }, []);
 
   const getCustomerUrl = (tableNumber: string) => {
-    if (!restaurantSlug) {
-      return "";
-    }
-
-    const customerPath = `/r/${encodeURIComponent(restaurantSlug)}/t/${encodeURIComponent(tableNumber)}`;
-    if (typeof window === "undefined") {
-      return customerPath;
-    }
-
-    return `${window.location.origin}${customerPath}`;
+    if (!restaurant?.slug) return "";
+    const path = `/r/${encodeURIComponent(restaurant.slug)}/t/${encodeURIComponent(tableNumber)}`;
+    return typeof window === "undefined" ? path : `${window.location.origin}${path}`;
   };
 
   const filteredTables = useMemo(() => {
     const query = search.trim().toLowerCase();
-
-    if (!query) {
-      return tables;
-    }
-
-    return tables.filter((table) =>
-      table.tableNumber.toLowerCase().includes(query),
-    );
+    return query
+      ? tables.filter((table) => table.tableNumber.toLowerCase().includes(query))
+      : tables;
   }, [search, tables]);
 
   const downloadQR = (table: RestaurantTable) => {
     const svg = document.getElementById(`qr-${table._id}`);
-
     if (!svg) {
+      setError("Could not prepare this QR code for download. Please try again.");
       return;
     }
 
     const svgData = new XMLSerializer().serializeToString(svg);
-
-    const svgBlob = new Blob([svgData], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-
-    const url = URL.createObjectURL(svgBlob);
-
+    const url = URL.createObjectURL(
+      new Blob([svgData], { type: "image/svg+xml;charset=utf-8" }),
+    );
     const link = document.createElement("a");
-
     link.href = url;
-    link.download = `table-${table.tableNumber}-qr.svg`;
-
+    link.download = `${(restaurant?.slug || "restaurant").toLowerCase()}-table-${table.tableNumber}-qr.svg`;
     document.body.appendChild(link);
-
     link.click();
-
-    document.body.removeChild(link);
-
+    link.remove();
     URL.revokeObjectURL(url);
   };
 
   const printQR = (table: RestaurantTable) => {
-    const customerUrl = getCustomerUrl(table.tableNumber);
-
     const svg = document.getElementById(`qr-${table._id}`);
-
     if (!svg) {
+      setError("Could not prepare this QR code for printing. Please try again.");
       return;
     }
 
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const safeTableNumber = escapeHtml(table.tableNumber);
-    const safeCustomerUrl = escapeHtml(customerUrl);
-
-    const svgBase64 = window.btoa(
-      unescape(encodeURIComponent(svgData)),
-    );
-
-    const printWindow = window.open(
-      "",
-      "_blank",
-      "width=600,height=700",
-    );
-
+    const printWindow = window.open("", "_blank", "width=760,height=920");
     if (!printWindow) {
-      setError("Allow pop-ups to print a table QR code.");
+      setError("Allow pop-ups for this site to print a table QR card.");
       return;
     }
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
+    const restaurantName = escapeHtml(restaurant?.name || "Our Restaurant");
+    const tableNumber = escapeHtml(table.tableNumber);
+    const customerUrl = escapeHtml(getCustomerUrl(table.tableNumber));
+    const logoUrl = restaurant?.logo ? escapeHtml(resolveMediaUrl(restaurant.logo)) : "";
+    const svgBase64 = window.btoa(unescape(encodeURIComponent(
+      new XMLSerializer().serializeToString(svg),
+    )));
+
+    printWindow.document.write(`<!doctype html>
+      <html lang="en">
         <head>
-          <title>Table ${safeTableNumber} QR Code</title>
-
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${restaurantName} · Table ${tableNumber} menu</title>
           <style>
-            * {
-              box-sizing: border-box;
-            }
-
+            * { box-sizing: border-box; }
+            @page { size: A6 portrait; margin: 0; }
+            html, body { margin: 0; min-height: 100%; }
             body {
-              margin: 0;
-              min-height: 100vh;
+              display: grid;
+              place-items: center;
+              padding: 12mm;
+              background: #ece9e0;
+              color: #173b32;
+              font-family: Inter, "Segoe UI", Arial, sans-serif;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .card {
+              position: relative;
+              width: 105mm;
+              min-height: 148mm;
+              padding: 9mm 8mm 8mm;
+              overflow: hidden;
+              border: 1px solid #d8cfb9;
+              border-radius: 5mm;
+              background: #fbf9f2;
+              text-align: center;
+              box-shadow: 0 12px 38px #173b321c;
+            }
+            .card:before {
+              position: absolute;
+              top: 0; left: 0; right: 0;
+              height: 3mm;
+              background: #b28a50;
+              content: "";
+            }
+            .brand {
               display: flex;
               align-items: center;
               justify-content: center;
-              font-family: Arial, Helvetica, sans-serif;
-              background: white;
+              gap: 3mm;
+              min-height: 13mm;
             }
-
-            .card {
-              width: 420px;
-              padding: 40px;
-              text-align: center;
+            .brand img {
+              width: 12mm; height: 12mm;
+              border-radius: 50%;
+              object-fit: cover;
             }
-
+            .monogram {
+              display: grid;
+              width: 12mm; height: 12mm;
+              place-items: center;
+              border: 1px solid #b28a50;
+              border-radius: 50%;
+              color: #173b32;
+              font-family: Georgia, serif;
+              font-size: 19pt;
+            }
+            .restaurant {
+              max-width: 67mm;
+              color: #173b32;
+              font-family: Georgia, "Times New Roman", serif;
+              font-size: 17pt;
+              font-weight: 700;
+              line-height: 1.08;
+            }
+            .eyebrow {
+              margin: 6mm 0 2mm;
+              color: #9b7540;
+              font-size: 7pt;
+              font-weight: 700;
+              letter-spacing: 2.1pt;
+              text-transform: uppercase;
+            }
             h1 {
               margin: 0;
-              font-size: 26px;
-              color: #0f172a;
+              color: #173b32;
+              font-family: Georgia, "Times New Roman", serif;
+              font-size: 25pt;
+              line-height: 1;
             }
-
-            h2 {
-              margin: 10px 0 24px;
-              font-size: 20px;
-              color: #059669;
+            .rule {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 2mm;
+              margin: 5mm 0;
+              color: #b28a50;
+              font-size: 9pt;
             }
-
-            img {
-              display: block;
-              width: 260px;
-              height: 260px;
-              margin: 0 auto;
+            .rule:before, .rule:after {
+              width: 17mm;
+              height: 1px;
+              background: #d8cfb9;
+              content: "";
             }
-
-            p {
-              margin-top: 24px;
-              font-size: 14px;
-              line-height: 1.6;
-              color: #64748b;
+            .qr-frame {
+              display: inline-grid;
+              width: 75mm;
+              height: 75mm;
+              place-items: center;
+              border: 1px solid #e4ddcd;
+              border-radius: 4mm;
+              background: white;
+              padding: 4mm;
             }
-
+            .qr-frame img { display: block; width: 66mm; height: 66mm; }
+            .scan {
+              margin: 5mm 0 1.5mm;
+              color: #173b32;
+              font-size: 12pt;
+              font-weight: 800;
+              letter-spacing: 1.3pt;
+            }
+            .caption {
+              margin: 0;
+              color: #68736c;
+              font-family: Georgia, "Times New Roman", serif;
+              font-size: 11pt;
+              font-style: italic;
+            }
             .url {
-              margin-top: 14px;
-              padding: 10px;
-              border-radius: 10px;
-              background: #f8fafc;
-              color: #334155;
-              font-size: 11px;
-              word-break: break-all;
+              margin-top: 5mm;
+              padding: 2.5mm 3mm;
+              border: 1px solid #e5dece;
+              border-radius: 2mm;
+              background: #f5f1e7;
+              color: #52645a;
+              font-size: 6.5pt;
+              overflow-wrap: anywhere;
             }
-
+            .footer {
+              margin-top: 5mm;
+              color: #9b7540;
+              font-size: 6pt;
+              font-weight: 700;
+              letter-spacing: 1.5pt;
+              text-transform: uppercase;
+            }
+            @media screen {
+              body { min-height: 100vh; }
+            }
             @media print {
-              body {
-                min-height: auto;
-              }
-
+              body { display: block; padding: 0; background: white; }
               .card {
-                width: 100%;
-                padding: 20px;
+                width: 105mm; height: 148mm; min-height: 148mm;
+                margin: 0; border-radius: 0; box-shadow: none;
               }
             }
           </style>
         </head>
-
         <body>
-          <div class="card">
-            <h1>Restaurant QR Menu</h1>
-
-            <h2>Table ${safeTableNumber}</h2>
-
-            <img
-              src="data:image/svg+xml;base64,${svgBase64}"
-              alt="QR Code"
-            />
-
-            <p>
-              Scan this QR code to view the menu
-              and place your dine-in order.
-            </p>
-
-            <div class="url">
-              ${safeCustomerUrl}
+          <main class="card">
+            <div class="brand">
+              ${logoUrl ? `<img src="${logoUrl}" alt="" />` : `<span class="monogram">${restaurantName.charAt(0)}</span>`}
+              <div class="restaurant">${restaurantName}</div>
             </div>
-          </div>
-
+            <p class="eyebrow">A seat at our table</p>
+            <h1>Table ${tableNumber}</h1>
+            <div class="rule">✦</div>
+            <div class="qr-frame">
+              <img src="data:image/svg+xml;base64,${svgBase64}" alt="Scan to open the restaurant menu for table ${tableNumber}" />
+            </div>
+            <p class="scan">SCAN TO ORDER</p>
+            <p class="caption">Good food is just a scan away.</p>
+            <div class="url">${customerUrl}</div>
+            <p class="footer">Freshly made · Thoughtfully served</p>
+          </main>
           <script>
-            window.onload = function () {
-              window.print();
-            };
+            window.addEventListener("load", function () {
+              window.setTimeout(function () { window.print(); }, 250);
+            });
           </script>
         </body>
-      </html>
-    `);
-
+      </html>`);
     printWindow.document.close();
   };
 
   if (loading) {
-    return <Card><p className="text-sm text-slate-500">Loading table QR codes…</p></Card>;
+    return <Card><p className="text-sm text-slate-500">Preparing your table QR codes…</p></Card>;
   }
 
+  const restaurantName = restaurant?.name || "Your Restaurant";
+  const restaurantLogo = restaurant?.logo ? resolveMediaUrl(restaurant.logo) : "";
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {/* Heading */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm text-slate-500">
-            Digital ordering
-          </p>
-
-          <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-            QR Codes
-          </h2>
-
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Generate table-specific QR codes that open the
-            restaurant digital menu.
-          </p>
+    <div className="mx-auto max-w-7xl space-y-7">
+      {error && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
+      )}
 
-        <Badge variant="default">
-          {tables.length} QR codes
-        </Badge>
-      </div>
+      <header className="relative overflow-hidden rounded-3xl bg-[#173b32] px-6 py-7 text-white shadow-lg shadow-emerald-950/10 sm:px-9 sm:py-9">
+        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full border border-white/10" />
+        <div className="absolute -right-2 -top-10 h-44 w-44 rounded-full border border-[#c5a36b]/30" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#e5d4b1]">
+              <QrCode size={23} />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#d7bd8c]">The table-side welcome</p>
+              <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Your menu, one scan away.</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+                Beautiful, table-specific QR cards that take guests straight to {restaurantName}&apos;s menu.
+              </p>
+            </div>
+          </div>
+          <div className="flex w-fit items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+            <span className="font-serif text-2xl font-semibold text-[#e5d4b1]">{tables.length}</span>
+            <span className="text-xs leading-4 text-white/75">table<br />{tables.length === 1 ? "code" : "codes"}</span>
+          </div>
+        </div>
+      </header>
 
-      {/* Information banner */}
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
+      <Card className="border-[#e8e0cf] bg-[#fbf9f2]">
         <div className="flex gap-3">
-          <div className="mt-0.5 text-lg">
-            📱
-          </div>
-
+          <Sparkles className="mt-0.5 shrink-0 text-[#9b7540]" size={18} />
           <div>
-            <p className="text-sm font-semibold text-emerald-900">
-              How it works
-            </p>
-
-            <p className="mt-1 text-sm leading-6 text-emerald-700">
-              Each restaurant table will have a unique QR code.
-              Customers can scan the code to open the menu for
-              that specific table and place a dine-in order.
+            <h2 className="text-sm font-bold text-[#173b32]">Made to look at home on your tables</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Preview each design, then print a crisp A6 table card. Every code opens the menu for that exact table—no restaurant or table selection required.
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Search */}
-      <Card padding="sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="w-full sm:max-w-sm">
-            <Input
-              id="qr-search"
-              placeholder="Search table number..."
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-            />
-          </div>
-
-          <p className="text-sm text-slate-500">
-            Showing{" "}
-            <span className="font-semibold text-slate-700">
-              {filteredTables.length}
-            </span>{" "}
-            of {tables.length} tables
-          </p>
         </div>
       </Card>
 
-      {/* Empty state */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-slate-950">Table cards</h2>
+          <p className="mt-1 text-sm text-slate-500">Choose a table to preview, download, or print.</p>
+        </div>
+        <div className="relative w-full sm:max-w-xs">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Input
+            id="qr-search"
+            className="pl-9"
+            placeholder="Find a table…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+      </div>
+
       {filteredTables.length === 0 ? (
         <Card>
           <div className="py-12 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-2xl">
-              ▦
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <QrCode size={24} />
             </div>
-
-            <h3 className="mt-4 font-bold text-slate-900">
-              No QR codes available
-            </h3>
-
+            <h3 className="mt-4 font-bold text-slate-900">{tables.length ? "No tables match your search" : "Your first QR card starts with a table"}</h3>
             <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-slate-500">
-              Create restaurant tables on the Tables page and their QR codes will appear here.
+              {tables.length ? "Try another table number." : "Add tables in Table Management. Their custom menu cards will appear here automatically."}
             </p>
-
-            <div className="mx-auto mt-6 max-w-lg rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                QR system
-              </p>
-
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Each table will receive a unique QR token.
-                Scanning the QR code will open:
-              </p>
-
-              <code className="mt-3 block break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-600">/r/{restaurantSlug || "restaurant"}/t/[table-number]</code>
-            </div>
           </div>
         </Card>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {filteredTables.map((table) => {
-            const customerUrl = getCustomerUrl(
-              table.tableNumber,
-            );
-
+            const customerUrl = getCustomerUrl(table.tableNumber);
             return (
-              <Card
-                key={table._id}
-                padding="none"
-                className="overflow-hidden"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                      Table
-                    </p>
-
-                    <p className="mt-0.5 text-xl font-bold text-slate-900">
-                      {table.tableNumber}
-                    </p>
+              <Card key={table._id} padding="none" className="group overflow-hidden border-[#e4ddcd] bg-[#fbf9f2] transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/10">
+                <div className="flex items-center justify-between px-5 pb-3 pt-5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {restaurantLogo ? (
+                      <img src={restaurantLogo} alt="" className="h-10 w-10 rounded-full border border-[#d8cfb9] object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#b28a50] font-serif text-lg text-[#173b32]">{restaurantName.charAt(0)}</span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-serif text-sm font-bold text-[#173b32]">{restaurantName}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9b7540]">Guest menu</p>
+                    </div>
                   </div>
-
-                  <Badge variant="success">
-                    Active
-                  </Badge>
+                  <Badge variant="success">Ready</Badge>
                 </div>
 
-                {/* QR */}
-                <div className="flex justify-center bg-slate-50 px-5 py-6">
-                  <div className="rounded-2xl bg-white p-4 shadow-sm">
-                    <QRCodeSVG
-                      id={`qr-${table._id}`}
-                      value={customerUrl}
-                      size={180}
-                      level="H"
-                      includeMargin
-                    />
+                <div className="mx-4 overflow-hidden rounded-2xl border border-[#e4ddcd] bg-white shadow-sm">
+                  <div className="bg-[#173b32] px-4 pb-4 pt-3 text-center text-white">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.24em] text-[#d7bd8c]">A seat at our table</p>
+                    <p className="mt-1 font-serif text-2xl font-semibold">Table {table.tableNumber}</p>
+                  </div>
+                  <div className="px-4 pb-3 pt-4 text-center">
+                    <div className="mx-auto w-fit rounded-xl border border-[#eee8da] bg-white p-2">
+                      <QRCodeSVG
+                        id={`qr-${table._id}`}
+                        value={customerUrl}
+                        size={160}
+                        level="H"
+                        includeMargin
+                        fgColor="#173b32"
+                        bgColor="#ffffff"
+                        title={`${restaurantName} menu for table ${table.tableNumber}`}
+                      />
+                    </div>
+                    <p className="mt-3 text-[10px] font-extrabold tracking-[0.2em] text-[#173b32]">SCAN TO ORDER</p>
+                    <p className="mt-1 font-serif text-xs italic text-slate-500">Good food is just a scan away.</p>
                   </div>
                 </div>
 
-                {/* Details */}
-                <div className="p-5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">
-                      Capacity
-                    </span>
-
-                    <span className="font-semibold text-slate-700">
-                      {table.capacity} people
-                    </span>
+                <div className="p-4">
+                  <p className="truncate rounded-lg bg-white/70 px-3 py-2 text-center text-[10px] text-slate-500" title={customerUrl}>{customerUrl}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setSelectedTable(table)}>Preview</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => downloadQR(table)}><Download size={14} /> SVG</Button>
+                    <Button type="button" size="sm" onClick={() => printQR(table)}><Printer size={14} /> Print</Button>
                   </div>
-
-                  <div className="mt-3 rounded-xl bg-slate-50 p-3">
-                    <p className="text-xs font-medium text-slate-400">
-                      Customer URL
-                    </p>
-
-                    <p className="mt-1 truncate text-xs font-medium text-slate-600">
-                      {customerUrl}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setSelectedTable(table)
-                      }
-                    >
-                      Preview
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() =>
-                        downloadQR(table)
-                      }
-                    >
-                      Download
-                    </Button>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    fullWidth
-                    className="mt-2"
-                    onClick={() =>
-                      printQR(table)
-                    }
-                  >
-                    🖨 Print QR
-                  </Button>
                 </div>
               </Card>
             );
@@ -446,102 +418,43 @@ function QRPage() {
         </div>
       )}
 
-      {/* Preview modal */}
       {selectedTable && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-          onMouseDown={() =>
-            setSelectedTable(null)
-          }
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-sm"
+          onMouseDown={() => setSelectedTable(null)}
         >
           <div
-            className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
-            onMouseDown={(event) =>
-              event.stopPropagation()
-            }
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="qr-preview-title"
+            className="my-auto w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-[#fbf9f2] shadow-2xl"
+            onMouseDown={(event) => event.stopPropagation()}
           >
-            {/* Modal header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div className="flex items-center justify-between bg-[#173b32] px-5 py-4 text-white">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                  QR Preview
-                </p>
-
-                <h3 className="mt-0.5 text-lg font-bold text-slate-900">
-                  Table {selectedTable.tableNumber}
-                </h3>
+                <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#d7bd8c]">Print-ready table card</p>
+                <h2 id="qr-preview-title" className="mt-1 font-serif text-xl font-semibold">Preview · Table {selectedTable.tableNumber}</h2>
               </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedTable(null)
-                }
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close preview"
-              >
-                ×
+              <button type="button" onClick={() => setSelectedTable(null)} className="flex h-9 w-9 items-center justify-center rounded-xl text-white/70 transition hover:bg-white/10 hover:text-white" aria-label="Close preview">
+                <X size={19} />
               </button>
             </div>
 
-            {/* Modal body */}
-            <div className="p-6 text-center">
-              <div className="mx-auto w-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <QRCodeSVG
-                  value={getCustomerUrl(
-                    selectedTable.tableNumber,
-                  )}
-                  size={240}
-                  level="H"
-                  includeMargin
-                />
-              </div>
-
-              <h4 className="mt-5 text-xl font-bold text-slate-900">
-                Restaurant QR Menu
-              </h4>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Table {selectedTable.tableNumber}
-              </p>
-
-              <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-slate-500">
-                Scan this code to open the restaurant menu and
-                place a dine-in order.
-              </p>
-
-              <div className="mt-4 rounded-xl bg-slate-50 p-3 text-left">
-                <p className="text-xs font-medium text-slate-400">
-                  Customer URL
-                </p>
-
-                <p className="mt-1 break-all text-xs font-medium text-slate-600">
-                  {getCustomerUrl(
-                    selectedTable.tableNumber,
-                  )}
-                </p>
-              </div>
-
-              <div className="mt-5 flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  fullWidth
-                  onClick={() =>
-                    printQR(selectedTable)
-                  }
-                >
-                  🖨 Print
+            <div className="max-h-[75vh] overflow-y-auto p-5 sm:p-7">
+              <QrCard
+                restaurantName={restaurantName}
+                logo={restaurantLogo}
+                tableNumber={selectedTable.tableNumber}
+                url={getCustomerUrl(selectedTable.tableNumber)}
+                size={220}
+                qrId={`preview-qr-${selectedTable._id}`}
+              />
+              <div className="mt-5 flex gap-3">
+                <Button type="button" variant="outline" fullWidth onClick={() => printQR(selectedTable)}>
+                  <Printer size={16} /> Print A6
                 </Button>
-
-                <Button
-                  type="button"
-                  fullWidth
-                  onClick={() =>
-                    downloadQR(selectedTable)
-                  }
-                >
-                  Download
+                <Button type="button" fullWidth onClick={() => downloadQR(selectedTable)}>
+                  <Download size={16} /> Download QR
                 </Button>
               </div>
             </div>
@@ -549,6 +462,52 @@ function QRPage() {
         </div>
       )}
     </div>
+  );
+}
+
+interface QrCardProps {
+  restaurantName: string;
+  logo: string;
+  tableNumber: string;
+  url: string;
+  size: number;
+  qrId: string;
+}
+
+function QrCard({ restaurantName, logo, tableNumber, url, size, qrId }: QrCardProps) {
+  return (
+    <article className="relative mx-auto w-full max-w-[330px] overflow-hidden rounded-[28px] border border-[#d8cfb9] bg-[#fbf9f2] px-5 pb-6 pt-5 text-center shadow-[0_16px_44px_rgba(23,59,50,0.12)]">
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-[#b28a50]" />
+      <div className="flex min-h-12 items-center justify-center gap-3">
+        {logo ? (
+          <img src={logo} alt="" className="h-11 w-11 rounded-full border border-[#d8cfb9] object-cover" />
+        ) : (
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#b28a50] font-serif text-xl text-[#173b32]">{restaurantName.charAt(0)}</span>
+        )}
+        <h3 className="max-w-[230px] text-left font-serif text-lg font-bold leading-tight text-[#173b32]">{restaurantName}</h3>
+      </div>
+      <p className="mt-5 text-[9px] font-bold uppercase tracking-[0.24em] text-[#9b7540]">A seat at our table</p>
+      <h4 className="mt-1 font-serif text-3xl font-semibold text-[#173b32]">Table {tableNumber}</h4>
+      <div className="my-3 flex items-center justify-center gap-2 text-[#b28a50]">
+        <span className="h-px w-12 bg-[#d8cfb9]" /><span className="text-xs">✦</span><span className="h-px w-12 bg-[#d8cfb9]" />
+      </div>
+      <div className="mx-auto w-fit rounded-2xl border border-[#e4ddcd] bg-white p-2.5 shadow-sm">
+        <QRCodeSVG
+          id={qrId}
+          value={url}
+          size={size}
+          level="H"
+          includeMargin
+          fgColor="#173b32"
+          bgColor="#ffffff"
+          title={`${restaurantName} menu for table ${tableNumber}`}
+        />
+      </div>
+      <p className="mt-4 text-xs font-extrabold tracking-[0.2em] text-[#173b32]">SCAN TO ORDER</p>
+      <p className="mt-1 font-serif text-sm italic text-slate-500">Good food is just a scan away.</p>
+      <p className="mt-4 break-all rounded-lg border border-[#e5dece] bg-[#f5f1e7] px-3 py-2 text-[9px] leading-4 text-slate-500">{url}</p>
+      <p className="mt-3 text-[8px] font-bold uppercase tracking-[0.18em] text-[#9b7540]">Freshly made · Thoughtfully served</p>
+    </article>
   );
 }
 
