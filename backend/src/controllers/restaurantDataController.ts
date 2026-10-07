@@ -21,7 +21,7 @@ const getOwnerRequest = (
   if (
     !req.user ||
     !req.user.restaurantId ||
-    !["restaurant_owner", "restaurant_staff"].includes(req.user.role)
+    req.user.role !== "restaurant_owner"
   ) {
     res.status(403).json({
       success: false,
@@ -210,7 +210,7 @@ export const getMenuItems = async (
     res.json({
       success: true,
       data: {
-        items: items.map((item) => {
+        items:             items.map((item) => {
           return {
             ...item.toObject(),
             image: isGeneratedDishImage(item.image) ? "" : item.image,

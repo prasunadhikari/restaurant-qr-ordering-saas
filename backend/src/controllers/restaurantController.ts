@@ -230,10 +230,10 @@ export const getMyRestaurant = async (
   res: Response,
 ): Promise<void> => {
   try {
-    if (!req.user) {
+    if (!req.user || req.user.role !== "restaurant_owner") {
       res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message: "Restaurant owner access required",
       });
       return;
     }
@@ -280,7 +280,7 @@ export const updateMyRestaurant = async (
     if (
       !req.user ||
       !req.user.restaurantId ||
-      !["restaurant_owner", "restaurant_staff"].includes(req.user.role)
+      req.user.role !== "restaurant_owner"
     ) {
       res.status(403).json({
         success: false,

@@ -26,6 +26,15 @@ export interface RestaurantTable {
   status: "available" | "occupied";
 }
 
+export interface RestaurantStaffMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: "restaurant_staff";
+  restaurantId: string;
+  createdAt: string;
+}
+
 export type OrderStatus =
   | "pending"
   | "accepted"
@@ -218,6 +227,36 @@ export const updateTable = async (
 
 export const deleteTable = async (id: string): Promise<void> => {
   await authorized(`/restaurant/tables/${id}`, { method: "DELETE" });
+};
+
+export const getRestaurantStaff = async (): Promise<RestaurantStaffMember[]> =>
+  (await authorized<{ staff: RestaurantStaffMember[] }>("/restaurant/staff")).staff;
+
+export const createRestaurantStaff = async (
+  value: { name: string; email: string; password: string },
+): Promise<RestaurantStaffMember> =>
+  (
+    await authorized<{ staff: RestaurantStaffMember }>("/restaurant/staff", {
+      method: "POST",
+      body: JSON.stringify(value),
+    })
+  ).staff;
+
+export const updateRestaurantStaff = async (
+  id: string,
+  value: { name: string; email: string; password?: string },
+): Promise<RestaurantStaffMember> =>
+  (
+    await authorized<{ staff: RestaurantStaffMember }>(
+      `/restaurant/staff/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(value) },
+    )
+  ).staff;
+
+export const deleteRestaurantStaff = async (id: string): Promise<void> => {
+  await authorized(`/restaurant/staff/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 };
 
 export const getOrders = async (): Promise<RestaurantOrder[]> =>

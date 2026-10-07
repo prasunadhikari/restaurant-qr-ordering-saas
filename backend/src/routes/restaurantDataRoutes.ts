@@ -21,10 +21,22 @@ import {
   uploadMenuItemImage,
 } from "../controllers/restaurantDataController.js";
 import { uploadMenuImage } from "../middleware/menuImageUpload.js";
+import restaurantOwnerMiddleware from "../middleware/restaurantOwnerMiddleware.js";
+import {
+  createRestaurantStaff,
+  deleteRestaurantStaff,
+  getRestaurantStaff,
+  updateRestaurantStaff,
+} from "../controllers/restaurantStaffController.js";
 
 const router = Router();
 
 router.use(authMiddleware);
+
+router.get("/staff", restaurantOwnerMiddleware, getRestaurantStaff);
+router.post("/staff", restaurantOwnerMiddleware, createRestaurantStaff);
+router.patch("/staff/:id", restaurantOwnerMiddleware, updateRestaurantStaff);
+router.delete("/staff/:id", restaurantOwnerMiddleware, deleteRestaurantStaff);
 
 router.get("/categories", getCategories);
 router.post("/categories", createCategory);

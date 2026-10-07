@@ -9,6 +9,7 @@ import userRoutes from "./routes/userRoutes.js";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
 import restaurantDataRoutes from "./routes/restaurantDataRoutes.js";
 import publicCustomerRoutes from "./routes/publicCustomerRoutes.js";
+import staffRoutes from "./routes/staffRoutes.js";
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/restaurants", restaurantRoutes);
 app.use("/api/restaurant", restaurantDataRoutes);
 app.use("/api/public", publicCustomerRoutes);
+app.use("/api/staff", staffRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {

@@ -10,6 +10,7 @@ import {
   Store,
   Table2,
   User,
+  UsersRound,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -73,6 +74,11 @@ function RestaurantLayout() {
       label: "Analytics",
       path: "/dashboard/analytics",
       icon: BarChart3,
+    },
+    {
+      label: "Staff",
+      path: "/dashboard/staff",
+      icon: UsersRound,
     },
     {
       label: "Settings",

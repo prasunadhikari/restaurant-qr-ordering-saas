@@ -2,9 +2,11 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import ProtectedOwnerRoute from "./components/restaurant/ProtectedOwnerRoute";
+import ProtectedStaffRoute from "./components/staff/ProtectedStaffRoute";
 
 import RestaurantLayout from "./layouts/RestaurantLayout";
 import AdminLayout from "./layouts/AdminLayout";
+import StaffLayout from "./layouts/StaffLayout";
 
 import HomePage from "./pages/HomePage";
 
@@ -19,6 +21,11 @@ import TablesPage from "./pages/restaurant/TablesPage";
 import QRPage from "./pages/restaurant/QRPage";
 import AnalyticsPage from "./pages/restaurant/AnalyticsPage";
 import SettingsPage from "./pages/restaurant/SettingsPage";
+import StaffManagementPage from "./pages/restaurant/StaffManagementPage";
+import StaffLoginPage from "./pages/staff/StaffLoginPage";
+import StaffDashboardPage from "./pages/staff/StaffDashboardPage";
+import StaffOrdersPage from "./pages/staff/StaffOrdersPage";
+import StaffOrderDetailPage from "./pages/staff/StaffOrderDetailPage";
 
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -47,6 +54,16 @@ function App() {
           path="/login"
           element={<OwnerLoginPage />}
         />
+
+        {/* Restaurant Staff */}
+        <Route path="/staff/login" element={<StaffLoginPage />} />
+        <Route element={<ProtectedStaffRoute />}>
+          <Route element={<StaffLayout />}>
+            <Route path="/staff" element={<StaffDashboardPage />} />
+            <Route path="/staff/orders" element={<StaffOrdersPage />} />
+            <Route path="/staff/orders/:id" element={<StaffOrderDetailPage />} />
+          </Route>
+        </Route>
 
         {/* Protected Restaurant Owner Dashboard */}
         <Route element={<ProtectedOwnerRoute />}>
@@ -84,6 +101,11 @@ function App() {
             <Route
               path="/dashboard/settings"
               element={<SettingsPage />}
+            />
+
+            <Route
+              path="/dashboard/staff"
+              element={<StaffManagementPage />}
             />
           </Route>
         </Route>
