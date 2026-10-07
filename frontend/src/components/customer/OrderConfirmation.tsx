@@ -247,7 +247,7 @@ function OrderConfirmation({
                   onClick={onContinueBrowsing}
                   className="w-full rounded-xl bg-[#173b32] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#245747]"
                 >
-                  Continue browsing
+                  Okay · Order again
                 </button>
               ) : <div className="grid grid-cols-2 gap-3">
                 {canPay ? (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronUp, CircleX, Clock3, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, CircleX, Clock3, RefreshCw, X } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
@@ -12,6 +12,23 @@ import {
 const statusLabel = (status: string) =>
   status.toLowerCase() === "new" ? "pending" : status.toLowerCase();
 
+const cancellationReasons = [
+  "Item unavailable or out of stock",
+  "Kitchen temporarily unavailable (equipment issue)",
+  "Unexpected staffing shortage",
+  "Restaurant closing or temporary closure",
+  "Preparation time is longer than expected",
+  "Table or dining area is unavailable",
+  "Duplicate order",
+  "Incorrect order details",
+  "Unable to fulfill a special request",
+  "Dietary or allergy requirements need clarification",
+  "Payment verification issue",
+  "Customer requested cancellation",
+  "Menu or pricing error",
+  "Other reason",
+];
+
 function ManagerOrdersPage() {
   const [orders, setOrders] = useState<ManagerOrder[]>([]);
   const [filter, setFilter] = useState("all");
@@ -20,6 +37,9 @@ function ManagerOrdersPage() {
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [cancellationOrder, setCancellationOrder] = useState<ManagerOrder | null>(null);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationDetails, setCancellationDetails] = useState("");
   const requestInFlight = useRef(false);
 
   const load = useCallback(async () => {
@@ -50,26 +70,51 @@ function ManagerOrdersPage() {
   );
 
   const changeStatus = async (order: ManagerOrder, status: string) => {
-    let reason: string | undefined;
     if (status === "cancelled") {
-      const enteredReason = window.prompt("Reason for declining or cancelling this order?");
-      if (enteredReason === null) return;
-      reason = enteredReason;
-      if (!reason.trim()) {
-        setError("A reason is required to decline or cancel an order.");
-        return;
-      }
+      setCancellationOrder(order);
+      setCancellationReason("");
+      setCancellationDetails("");
+      setError("");
+      return;
     }
+    await saveOrderStatus(order, status);
+  };
+
+  const saveOrderStatus = async (
+    order: ManagerOrder,
+    status: string,
+    reason?: string,
+  ): Promise<boolean> => {
     setBusyId(order._id);
     setError("");
     try {
       const updated = await updateManagerOrder(order._id, status, reason);
       setOrders((current) => current.map((entry) => entry._id === updated._id ? updated : entry));
+      return true;
     } catch (cause) {
       console.error("Failed to update manager order:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to update order.");
+      return false;
     } finally {
       setBusyId("");
+    }
+  };
+
+  const confirmCancellation = async () => {
+    if (!cancellationOrder || !cancellationReason) return;
+    const isOther = cancellationReason === "Other reason";
+    const details = cancellationDetails.trim();
+    if (isOther && !details) {
+      setError("Please enter a reason for cancelling this order.");
+      return;
+    }
+    const reason = isOther
+      ? details
+      : details
+        ? `${cancellationReason}: ${details}`
+        : cancellationReason;
+    if (await saveOrderStatus(cancellationOrder, "cancelled", reason)) {
+      setCancellationOrder(null);
     }
   };
 
@@ -144,6 +189,94 @@ function ManagerOrdersPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+      {cancellationOrder && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !busyId) setCancellationOrder(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-order-title"
+            className="my-auto w-full max-w-xl overflow-hidden rounded-3xl border border-white/50 bg-white shadow-2xl"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">Order #{cancellationOrder.orderNumber}</p>
+                <h2 id="cancel-order-title" className="mt-1 text-xl font-bold text-slate-950">Why are you cancelling?</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose a reason to let the customer know what happened.</p>
+              </div>
+              <button
+                type="button"
+                disabled={Boolean(busyId)}
+                onClick={() => setCancellationOrder(null)}
+                aria-label="Close cancellation dialog"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="space-y-4 p-5 sm:p-6">
+              <fieldset>
+                <legend className="mb-3 text-sm font-semibold text-slate-800">Select the most suitable reason</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {cancellationReasons.map((reason) => (
+                    <label
+                      key={reason}
+                      className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
+                        cancellationReason === reason
+                          ? "border-red-300 bg-red-50 text-red-900 ring-2 ring-red-100"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="manager-cancellation-reason"
+                        value={reason}
+                        checked={cancellationReason === reason}
+                        onChange={() => {
+                          setCancellationReason(reason);
+                          setError("");
+                        }}
+                        className="accent-red-700"
+                      />
+                      {reason}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {cancellationReason && (
+                <label className="block text-sm font-medium text-slate-700">
+                  {cancellationReason === "Other reason" ? "Please specify the reason" : "Add a note for the customer (optional)"}
+                  <textarea
+                    rows={3}
+                    maxLength={500}
+                    value={cancellationDetails}
+                    onChange={(event) => setCancellationDetails(event.target.value)}
+                    placeholder={cancellationReason === "Other reason" ? "Explain why this order cannot be fulfilled…" : "Add helpful details…"}
+                    className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  />
+                  <span className="mt-1 block text-right text-xs font-normal text-slate-400">{cancellationDetails.length}/500</span>
+                </label>
+              )}
+              {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" disabled={Boolean(busyId)} onClick={() => setCancellationOrder(null)}>Keep order</Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  disabled={!cancellationReason || Boolean(busyId) || (cancellationReason === "Other reason" && !cancellationDetails.trim())}
+                  onClick={() => void confirmCancellation()}
+                >
+                  <CircleX size={16} /> {busyId === cancellationOrder._id ? "Cancelling…" : "Cancel order"}
+                </Button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
     </div>

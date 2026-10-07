@@ -47,6 +47,7 @@ function RestaurantMenuPage() {
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [trackingError, setTrackingError] = useState("");
   const [lastOrder, setLastOrder] = useState<CustomerOrder | null>(null);
+  const [dismissedCancellationTokens, setDismissedCancellationTokens] = useState<string[]>([]);
   const [tableSessionState, setTableSessionState] = useState<{
     routeKey: string;
     session: CustomerTableSession | null;
@@ -115,6 +116,17 @@ function RestaurantMenuPage() {
           } catch (error) {
             console.warn("Unable to cache the table session token:", error);
           }
+        }
+        if (!session) {
+          setLastOrder(null);
+          setIsOrderConfirmed(false);
+        } else {
+          setLastOrder((current) => {
+            if (!current?.tableSessionId) return current;
+            return session.orders.find(
+              (order) => order.trackingToken === current.trackingToken,
+            ) ?? null;
+          });
         }
         if (session) setTrackingError("");
       } catch (error) {
@@ -417,12 +429,31 @@ function RestaurantMenuPage() {
     !["served", "cancelled"].includes(order.status.toLowerCase()),
   ).length;
   const visibleSessionOrders = sessionOrders.filter(
-    (order) => order.status.toLowerCase() !== "served",
+    (order) => !["served", "cancelled"].includes(order.status.toLowerCase()),
   );
   const lastOrderBelongsToCurrentSession =
     !lastOrder?.tableSessionId ||
     sessionOrders.some((order) => order.trackingToken === lastOrder.trackingToken) ||
     isOrderConfirmed;
+  const unacknowledgedCancellation = [...sessionOrders]
+    .reverse()
+    .find((order) =>
+      order.status.toLowerCase() === "cancelled" &&
+      order.trackingToken &&
+      !dismissedCancellationTokens.includes(order.trackingToken),
+    );
+  const dismissCancellation = (order: CustomerOrder) => {
+    const token = order.trackingToken;
+    if (token) {
+      setDismissedCancellationTokens((current) =>
+        current.includes(token) ? current : [...current, token],
+      );
+    }
+    if (lastOrder?.trackingToken === token) {
+      setLastOrder(null);
+      setIsOrderConfirmed(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f8f6f0] pb-32">
@@ -622,18 +653,18 @@ function RestaurantMenuPage() {
         error={orderError}
         onPlaceOrder={handlePlaceOrder}
       />
-      {lastOrderBelongsToCurrentSession && lastOrder?.status.toLowerCase() === "cancelled" && !isOrderConfirmed && (
+      {unacknowledgedCancellation && !isOrderConfirmed && (
         <div
           role="alert"
           className="fixed bottom-4 left-4 right-4 z-[70] mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-lg"
         >
-          <span><strong>Order #{lastOrder.orderNumber} was cancelled.</strong>{lastOrder.declineReason ? ` ${lastOrder.declineReason}` : ""}</span>
+          <span><strong>Order #{unacknowledgedCancellation.orderNumber} was cancelled.</strong>{unacknowledgedCancellation.declineReason ? ` ${unacknowledgedCancellation.declineReason}` : ""}</span>
           <button
             type="button"
-            onClick={() => setIsOrderConfirmed(true)}
-            className="shrink-0 rounded-lg bg-red-900 px-3 py-2 text-xs font-semibold text-white hover:bg-red-800"
+            onClick={() => dismissCancellation(unacknowledgedCancellation)}
+            className="shrink-0 rounded-lg bg-red-900 px-4 py-2 text-xs font-bold text-white hover:bg-red-800"
           >
-            View details
+            Okay
           </button>
         </div>
       )}
@@ -657,7 +688,13 @@ function RestaurantMenuPage() {
             paymentBusy={paymentBusy}
             paymentError={paymentError}
             onUpdatePayment={handleUpdatePayment}
-            onContinueBrowsing={() => setIsOrderConfirmed(false)}
+            onContinueBrowsing={() => {
+              if (lastOrder.status.toLowerCase() === "cancelled") {
+                dismissCancellation(lastOrder);
+              } else {
+                setIsOrderConfirmed(false);
+              }
+            }}
           />
         </>
       )}
