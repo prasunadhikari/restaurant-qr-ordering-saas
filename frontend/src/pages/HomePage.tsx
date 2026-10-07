@@ -90,7 +90,7 @@ function HomePage() {
           </nav>
 
           <Link
-            to="/admin/login"
+            to="/signin"
             className="border border-white/30 px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white hover:text-[#191815]"
           >
             Sign in
@@ -431,7 +431,7 @@ function HomePage() {
             </p>
 
             <Link
-              to="/admin/login"
+              to="/signin"
               className="home-final-link mt-10 inline-flex items-center gap-3 border border-white/25 px-7 py-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white hover:text-[#191815]"
             >
               Enter Aagan

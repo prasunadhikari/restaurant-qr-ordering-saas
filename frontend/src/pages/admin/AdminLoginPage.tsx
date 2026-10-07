@@ -5,6 +5,7 @@ import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { apiRequest } from "../../services/api";
+import { clearPortalSessions } from "../../services/authSession";
 
 interface LoginResponse {
   success: boolean;
@@ -69,10 +70,12 @@ function AdminLoginPage() {
         return;
       }
 
+      clearPortalSessions();
       localStorage.setItem(
         "adminToken",
         response.data.token,
       );
+      localStorage.setItem("adminUser", JSON.stringify(response.data.user));
 
       navigate("/admin", { replace: true });
     } catch (error) {

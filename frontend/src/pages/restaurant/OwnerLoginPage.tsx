@@ -9,6 +9,7 @@ import {
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { apiRequest } from "../../services/api";
+import { clearPortalSessions } from "../../services/authSession";
 
 interface LoginResponse {
   success: boolean;
@@ -82,6 +83,7 @@ function OwnerLoginPage() {
         return;
       }
 
+      clearPortalSessions();
       localStorage.setItem(
         "ownerToken",
         response.data.token,

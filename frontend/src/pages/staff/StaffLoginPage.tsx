@@ -5,6 +5,7 @@ import { LockKeyhole, Mail, UtensilsCrossed } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { apiRequest } from "../../services/api";
+import { clearPortalSessions } from "../../services/authSession";
 
 interface LoginResponse {
   success: boolean;
@@ -31,12 +32,6 @@ function StaffLoginPage() {
   if (localStorage.getItem("staffToken")) {
     return <Navigate to="/staff" replace />;
   }
-  if (localStorage.getItem("ownerToken")) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  if (localStorage.getItem("adminToken")) {
-    return <Navigate to="/admin" replace />;
-  }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,12 +50,9 @@ function StaffLoginPage() {
         setError("This staff account is not assigned to a restaurant yet.");
         return;
       }
+      clearPortalSessions();
       localStorage.setItem("staffToken", response.data.token);
       localStorage.setItem("staffUser", JSON.stringify(response.data.user));
-      localStorage.removeItem("ownerToken");
-      localStorage.removeItem("ownerUser");
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("adminUser");
       navigate("/staff", { replace: true });
     } catch (cause) {
       console.error("Staff login failed:", cause);

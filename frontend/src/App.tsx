@@ -9,6 +9,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import StaffLayout from "./layouts/StaffLayout";
 
 import HomePage from "./pages/HomePage";
+import SignInPage from "./pages/SignInPage";
 
 import RestaurantMenuPage from "./pages/customer/RestaurantMenuPage";
 
@@ -42,6 +43,7 @@ function App() {
           path="/"
           element={<HomePage />}
         />
+        <Route path="/signin" element={<SignInPage />} />
 
         {/* Customer */}
         <Route
