@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { resolve } from "node:path";
 
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -22,6 +23,11 @@ app.use(
 );
 
 app.use(express.json());
+app.use("/uploads", express.static(resolve(process.cwd(), "uploads"), {
+  dotfiles: "deny",
+  index: false,
+  redirect: false,
+}));
 
 // API routes
 app.use("/api/auth", authRoutes);

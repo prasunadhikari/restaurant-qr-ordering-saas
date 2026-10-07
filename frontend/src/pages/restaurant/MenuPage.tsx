@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Pencil, Plus, Search, Trash2, UtensilsCrossed } from "lucide-react";
+import { Check, ImagePlus, Pencil, Plus, Search, Trash2, UtensilsCrossed } from "lucide-react";
 
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
@@ -13,6 +13,7 @@ import {
   getMenuData,
   updateMenuItem,
   updateCategory,
+  uploadMenuItemImage,
 } from "../../services/restaurantDashboardService";
 import type {
   MenuCategory,
@@ -46,6 +47,7 @@ function MenuPage() {
   const [selectedCatalog, setSelectedCatalog] = useState<Record<string, boolean>>({});
   const [catalogPrices, setCatalogPrices] = useState<Record<string, string>>({});
   const [catalogNotice, setCatalogNotice] = useState("");
+  const [uploadingImageId, setUploadingImageId] = useState("");
 
   const load = async () => {
     try {
@@ -198,6 +200,23 @@ function MenuPage() {
     }
   };
 
+  const uploadDishPhoto = async (item: MenuItem, file?: File) => {
+    if (!file) return;
+    setUploadingImageId(item._id);
+    setError("");
+    try {
+      const updated = await uploadMenuItemImage(item._id, file);
+      setItems((current) =>
+        current.map((entry) => entry._id === updated._id ? updated : entry),
+      );
+    } catch (err) {
+      console.error("Failed to upload dish photo:", err);
+      setError(err instanceof Error ? err.message : "Unable to upload dish photo.");
+    } finally {
+      setUploadingImageId("");
+    }
+  };
+
   const removeItem = async (item: MenuItem) => {
     if (!window.confirm(`Delete ${item.name}?`)) return;
     try {
@@ -291,7 +310,7 @@ function MenuPage() {
         <Card><p className="text-xs font-bold uppercase text-slate-400">Total items</p><p className="mt-2 text-3xl font-black">{items.length}</p></Card>
         <Card><p className="text-xs font-bold uppercase text-slate-400">Available</p><p className="mt-2 text-3xl font-black text-emerald-600">{items.filter((item) => item.available).length}</p></Card>
         <Card><p className="text-xs font-bold uppercase text-slate-400">Categories</p><p className="mt-2 text-3xl font-black">{categories.length}</p></Card>
-        <Card><p className="text-xs font-bold uppercase text-slate-400">Images assigned</p><p className="mt-2 text-3xl font-black text-emerald-600">{items.filter((item) => Boolean(item.image)).length}</p></Card>
+        <Card><p className="text-xs font-bold uppercase text-slate-400">Actual photos</p><p className="mt-2 text-3xl font-black text-emerald-600">{items.filter((item) => Boolean(item.image)).length}</p></Card>
       </div>
 
       <Card>
@@ -381,7 +400,7 @@ function MenuPage() {
                             />
                           </span>
                           <span className="block text-[11px] text-slate-500">
-                            A matching food photo is assigned automatically.
+                            Upload the actual dish photo after adding this item.
                           </span>
                         </span>
                       )}
@@ -394,7 +413,7 @@ function MenuPage() {
             </div>
 
             <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">A matching food photo is assigned automatically. You can replace it any time.</p>
+              <p className="text-xs text-slate-500">Upload each dish's actual photo from the menu item list after adding it.</p>
               <Button type="button" disabled={saving || selectedCatalogDishes.length === 0} onClick={() => void addSelectedCatalogDishes()}>
                 <Plus size={16} /> {saving ? "Adding dishes…" : `Add ${selectedCatalogDishes.length || ""} selected dish${selectedCatalogDishes.length === 1 ? "" : "es"}`}
               </Button>
@@ -446,7 +465,7 @@ function MenuPage() {
               aria-describedby="item-image-help"
             />
             <p id="item-image-help" className="mt-1.5 text-xs text-slate-500">
-              Leave blank to assign a matching food photo automatically. You can replace it with a photo of your own dish.
+              Leave blank and upload the actual dish photo from the menu item list after saving, or paste a URL to that photo.
             </p>
             {image && (
               <img
@@ -487,15 +506,41 @@ function MenuPage() {
               return (
                 <div key={item._id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
                   {item.image ? (
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-16 w-20 shrink-0 rounded-lg object-cover"
-                      onError={(event) => {
-                        event.currentTarget.style.visibility = "hidden";
+                    <div className="relative flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 px-1 text-center text-[10px] text-slate-500">
+                      Photo unavailable
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="absolute inset-0 z-10 h-full w-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.style.visibility = "hidden";
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-lg bg-slate-100 px-2 text-center text-[10px] font-medium text-slate-500">
+                      Actual photo needed
+                    </div>
+                  )}
+                  <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    <ImagePlus size={14} />
+                    {uploadingImageId === item._id
+                      ? "Uploading…"
+                      : item.image
+                        ? "Replace photo"
+                        : "Upload actual photo"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={Boolean(uploadingImageId)}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        void uploadDishPhoto(item, file);
+                        event.currentTarget.value = "";
                       }}
                     />
-                  ) : null}
+                  </label>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2"><p className="font-bold text-slate-900">{item.name}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">{category?.name || "Uncategorized"}</span></div>
                     {item.description && <p className="mt-1 text-sm text-slate-500">{item.description}</p>}

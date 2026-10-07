@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest, resolveMediaUrl } from "./api";
 import type { Restaurant } from "./restaurantService";
 
 export interface MenuCategory {
@@ -122,7 +122,13 @@ export const getMenuData = async (): Promise<{
     authorized<{ categories: MenuCategory[] }>("/restaurant/categories"),
     authorized<{ items: MenuItem[] }>("/restaurant/menu"),
   ]);
-  return { categories: categories.categories, items: items.items };
+  return {
+    categories: categories.categories,
+    items: items.items.map((item) => ({
+      ...item,
+      image: resolveMediaUrl(item.image),
+    })),
+  };
 };
 
 export const createCategory = async (
@@ -148,8 +154,10 @@ export const deleteCategory = async (id: string): Promise<void> => {
 
 export const createMenuItem = async (
   value: Omit<MenuItem, "_id" | "categoryId"> & { categoryId: string },
-): Promise<MenuItem> =>
-  (await authorized<{ item: MenuItem }>("/restaurant/menu", json(value))).item;
+): Promise<MenuItem> => {
+  const item = (await authorized<{ item: MenuItem }>("/restaurant/menu", json(value))).item;
+  return { ...item, image: resolveMediaUrl(item.image) };
+};
 
 export const addCatalogMenuItems = async (
   items: Array<{ name: string; category: string; price: number }>,
@@ -159,13 +167,30 @@ export const addCatalogMenuItems = async (
 export const updateMenuItem = async (
   id: string,
   value: Partial<Omit<MenuItem, "_id" | "categoryId">> & { categoryId?: string },
-): Promise<MenuItem> =>
-  (
+): Promise<MenuItem> => {
+  const item = (
     await authorized<{ item: MenuItem }>(`/restaurant/menu/${id}`, {
       method: "PATCH",
       body: JSON.stringify(value),
     })
   ).item;
+  return { ...item, image: resolveMediaUrl(item.image) };
+};
+
+export const uploadMenuItemImage = async (
+  id: string,
+  image: File,
+): Promise<MenuItem> => {
+  const formData = new FormData();
+  formData.append("image", image);
+  const item = (
+    await authorized<{ item: MenuItem }>(
+      `/restaurant/menu/${id}/image`,
+      { method: "POST", body: formData },
+    )
+  ).item;
+  return { ...item, image: resolveMediaUrl(item.image) };
+};
 
 export const deleteMenuItem = async (id: string): Promise<void> => {
   await authorized(`/restaurant/menu/${id}`, { method: "DELETE" });

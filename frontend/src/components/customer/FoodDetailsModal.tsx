@@ -58,7 +58,7 @@ function FoodDetailsModal({
             />
           ) : (
             <div className="flex h-56 items-center justify-center text-sm text-slate-500 sm:h-72">
-              Dish photo coming soon
+              Actual dish photo coming soon
             </div>
           )}
         </div>

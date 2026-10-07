@@ -1,12 +1,14 @@
 import { Response } from "express";
 import mongoose from "mongoose";
+import { unlink } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 
 import MenuCategory from "../models/MenuCategory.js";
 import MenuItem from "../models/MenuItem.js";
 import Order, { OrderStatus } from "../models/Order.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
-import { getDefaultMenuImage } from "../utils/menuImages.js";
+import { isGeneratedDishImage } from "../utils/menuImages.js";
 
 type OwnerRequest = AuthenticatedRequest & {
   restaurantId: string;
@@ -209,14 +211,9 @@ export const getMenuItems = async (
       success: true,
       data: {
         items: items.map((item) => {
-          const categoryName =
-            typeof item.categoryId === "object" &&
-            "name" in item.categoryId
-              ? String(item.categoryId.name)
-              : "";
           return {
             ...item.toObject(),
-            image: item.image || getDefaultMenuImage(item.name, categoryName),
+            image: isGeneratedDishImage(item.image) ? "" : item.image,
           };
         }),
       },
@@ -271,9 +268,7 @@ export const createMenuItem = async (
         typeof req.body.description === "string"
           ? req.body.description.trim()
           : "",
-      image: isValidImageUrl(req.body.image)
-        ? req.body.image.trim()
-        : getDefaultMenuImage(name, category.name),
+      image: isValidImageUrl(req.body.image) ? req.body.image.trim() : "",
       available: req.body.available !== false,
     });
     await item.populate("categoryId", "name");
@@ -386,7 +381,7 @@ export const addCatalogMenuItems = async (
           categoryId: categories.get(item.category.toLocaleLowerCase()),
           name: item.name,
           price: item.price,
-          image: item.image || getDefaultMenuImage(item.name, item.category),
+          image: item.image || "",
           available: true,
         })),
       );
@@ -475,22 +470,7 @@ export const updateMenuItem = async (
       updates.categoryId = categoryId;
     }
 
-    if (req.body.image === "") {
-      const categoryId =
-        typeof updates.categoryId === "string"
-          ? updates.categoryId
-          : existingItem.categoryId.toString();
-      const category = await MenuCategory.findOne({
-        _id: categoryId,
-        restaurantId: owner.restaurantId,
-      });
-      updates.image = getDefaultMenuImage(
-        typeof updates.name === "string"
-          ? updates.name
-          : existingItem.name,
-        category?.name,
-      );
-    }
+    if (req.body.image === "") updates.image = "";
 
     const item = await MenuItem.findOneAndUpdate(
       { _id: id, restaurantId: owner.restaurantId },
@@ -501,21 +481,89 @@ export const updateMenuItem = async (
       res.status(404).json({ success: false, message: "Menu item not found" });
       return;
     }
-    const categoryName =
-      typeof item.categoryId === "object" && "name" in item.categoryId
-        ? String(item.categoryId.name)
-        : "";
     res.json({
       success: true,
       data: {
         item: {
           ...item.toObject(),
-          image: item.image || getDefaultMenuImage(item.name, categoryName),
+          image: isGeneratedDishImage(item.image) ? "" : item.image,
         },
       },
     });
   } catch (error) {
     handleError(error, res, "Failed to update menu item");
+  }
+};
+
+export const uploadMenuItemImage = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const owner = getOwnerRequest(req, res);
+  if (!owner) {
+    if (req.file) {
+      await unlink(req.file.path).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") {
+          console.error("Failed to remove unauthorized menu photo upload:", error);
+        }
+      });
+    }
+    return;
+  }
+
+  const id = String(req.params.id);
+  if (!isValidId(id)) {
+    if (req.file) await unlink(req.file.path);
+    res.status(400).json({ success: false, message: "Invalid menu item ID" });
+    return;
+  }
+  if (!req.file) {
+    res.status(400).json({ success: false, message: "Choose a dish photo to upload" });
+    return;
+  }
+
+  try {
+    const item = await MenuItem.findOne({
+      _id: id,
+      restaurantId: owner.restaurantId,
+    });
+    if (!item) {
+      await unlink(req.file.path);
+      res.status(404).json({ success: false, message: "Menu item not found" });
+      return;
+    }
+
+    const previousImage = item.image;
+    item.image = `/uploads/menu/${req.file.filename}`;
+    await item.save();
+    await item.populate("categoryId", "name");
+
+    if (previousImage.startsWith("/uploads/menu/")) {
+      const previousPath = resolve(
+        process.cwd(),
+        "uploads",
+        "menu",
+        basename(previousImage),
+      );
+      if (previousPath !== req.file.path) {
+        await unlink(previousPath).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") {
+            console.error("Failed to remove replaced menu photo:", error);
+          }
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: { item },
+    });
+  } catch (error) {
+    console.error("Failed to upload menu item photo:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to upload dish photo",
+    });
   }
 };
 
@@ -539,6 +587,19 @@ export const deleteMenuItem = async (
     if (!item) {
       res.status(404).json({ success: false, message: "Menu item not found" });
       return;
+    }
+    if (item.image.startsWith("/uploads/menu/")) {
+      const imagePath = resolve(
+        process.cwd(),
+        "uploads",
+        "menu",
+        basename(item.image),
+      );
+      await unlink(imagePath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") {
+          console.error("Failed to remove deleted menu photo:", error);
+        }
+      });
     }
     res.json({ success: true, message: "Menu item deleted" });
   } catch (error) {

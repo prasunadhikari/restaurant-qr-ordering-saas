@@ -18,7 +18,9 @@ import {
   updateMenuItem,
   updateOrderStatus,
   updateTable,
+  uploadMenuItemImage,
 } from "../controllers/restaurantDataController.js";
+import { uploadMenuImage } from "../middleware/menuImageUpload.js";
 
 const router = Router();
 
@@ -32,6 +34,11 @@ router.delete("/categories/:id", deleteCategory);
 router.get("/menu", getMenuItems);
 router.post("/menu", createMenuItem);
 router.post("/menu/catalog", addCatalogMenuItems);
+router.post(
+  "/menu/:id/image",
+  uploadMenuImage,
+  uploadMenuItemImage,
+);
 router.patch("/menu/:id", updateMenuItem);
 router.delete("/menu/:id", deleteMenuItem);
 

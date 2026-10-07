@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest, resolveMediaUrl } from "./api";
 
 export interface PublicRestaurant {
   _id: string;
@@ -74,12 +74,20 @@ const restaurantTableEndpoint = (
 export const getPublicMenu = async (
   restaurantSlug: string,
   tableNumber: string,
-): Promise<PublicMenu> =>
-  (
+): Promise<PublicMenu> => {
+  const menu = (
     await apiRequest<ApiResponse<PublicMenu>>(
       `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/menu`,
     )
   ).data;
+  return {
+    ...menu,
+    items: menu.items.map((item) => ({
+      ...item,
+      image: resolveMediaUrl(item.image),
+    })),
+  };
+};
 
 export const placeCustomerOrder = async (
   restaurantSlug: string,

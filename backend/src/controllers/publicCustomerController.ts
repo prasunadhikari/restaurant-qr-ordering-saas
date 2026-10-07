@@ -7,7 +7,7 @@ import MenuItem from "../models/MenuItem.js";
 import Order from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
-import { getDefaultMenuImage } from "../utils/menuImages.js";
+import { isGeneratedDishImage } from "../utils/menuImages.js";
 
 const handleError = (error: unknown, res: Response, message: string): void => {
   console.error(message, error);
@@ -113,7 +113,7 @@ export const getPublicRestaurantMenu = async (
               : "";
           return {
             ...item.toObject(),
-            image: item.image || getDefaultMenuImage(item.name, categoryName),
+            image: isGeneratedDishImage(item.image) ? "" : item.image,
           };
         }),
       },
