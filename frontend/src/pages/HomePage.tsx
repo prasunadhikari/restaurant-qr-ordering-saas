@@ -451,26 +451,44 @@ function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#11110F] px-6 py-8 text-white lg:px-10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center border border-white/20 font-serif">
-              A
+      <footer className="border-t border-white/10 bg-[#11110F] px-6 py-10 text-white lg:px-10">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col gap-8 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-11 w-11 items-center justify-center border border-[#D7BD8C]/40 bg-white/5 font-serif text-lg text-[#E5D4B1]">
+                A
+              </div>
+
+              <div>
+                <p className="font-serif text-base tracking-[0.22em] text-white">
+                  AAGAN
+                </p>
+                <p className="mt-1 text-[8px] uppercase tracking-[0.24em] text-white/45">
+                  Where every table welcomes you.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <p className="font-serif text-sm tracking-[0.15em]">
-                AAGAN
-              </p>
-              <p className="mt-1 text-[8px] uppercase tracking-[0.2em] text-white/35">
-                Where every table welcomes you.
-              </p>
-            </div>
+            <nav className="flex flex-wrap items-center gap-5 text-[9px] font-medium uppercase tracking-[0.24em] text-white/60">
+              <a href="#about" className="transition hover:text-white">
+                About
+              </a>
+              <a href="#experience" className="transition hover:text-white">
+                Experience
+              </a>
+              <a href="#access" className="transition hover:text-white">
+                Access
+              </a>
+              <Link to="/signin" className="transition hover:text-white">
+                Sign in
+              </Link>
+            </nav>
           </div>
 
-          <p className="text-[9px] uppercase tracking-[0.2em] text-white/30">
-            Restaurant technology · Kathmandu · Nepal
-          </p>
+          <div className="mt-6 flex flex-col gap-3 text-[10px] uppercase tracking-[0.2em] text-white/35 sm:flex-row sm:items-center sm:justify-between">
+            <p>© 2026 Prasun Adhikari. All rights reserved.</p>
+            <p>Restaurant technology · Kathmandu · Nepal</p>
+          </div>
         </div>
       </footer>
     </div>
