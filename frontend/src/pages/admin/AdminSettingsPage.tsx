@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
 import { changeAdminPassword } from "../../services/adminService";
-import { clearPortalSessions } from "../../services/authSession";
+import { clearAdminSession } from "../../services/authSession";
 
 function AdminSettingsPage() {
   const navigate = useNavigate();
@@ -58,7 +58,7 @@ function AdminSettingsPage() {
       setConfirmPassword("");
 
       setTimeout(() => {
-        clearPortalSessions();
+        clearAdminSession();
         navigate("/admin/login", { replace: true });
       }, 1800);
     } catch (err) {

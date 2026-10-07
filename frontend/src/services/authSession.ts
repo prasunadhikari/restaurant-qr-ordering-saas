@@ -1,15 +1,15 @@
-const portalSessionKeys = [
-  "ownerToken",
-  "ownerUser",
-  "adminToken",
-  "adminUser",
-  "staffToken",
-  "staffUser",
-  "staffRestaurant",
-];
+export const clearOwnerSession = (): void => {
+  localStorage.removeItem("ownerToken");
+  localStorage.removeItem("ownerUser");
+};
 
-export const clearPortalSessions = (): void => {
-  for (const key of portalSessionKeys) {
-    localStorage.removeItem(key);
-  }
+export const clearAdminSession = (): void => {
+  localStorage.removeItem("adminToken");
+  localStorage.removeItem("adminUser");
+};
+
+export const clearStaffSession = (): void => {
+  localStorage.removeItem("staffToken");
+  localStorage.removeItem("staffUser");
+  localStorage.removeItem("staffRestaurant");
 };

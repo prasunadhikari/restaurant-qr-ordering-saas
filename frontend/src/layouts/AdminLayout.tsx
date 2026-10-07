@@ -4,7 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import AdminSidebar from "../components/admin/AdminSidebar";
 import { apiRequest } from "../services/api";
-import { clearPortalSessions } from "../services/authSession";
+import { clearAdminSession } from "../services/authSession";
 
 interface AdminProfile {
   id: string;
@@ -56,7 +56,7 @@ function AdminLayout() {
   }, []);
 
   const logout = () => {
-    clearPortalSessions();
+    clearAdminSession();
     navigate("/signin", { replace: true });
   };
 

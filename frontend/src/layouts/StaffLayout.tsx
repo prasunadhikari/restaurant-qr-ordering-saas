@@ -3,6 +3,7 @@ import { ClipboardList, LayoutDashboard, LogOut, Utensils } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { getStaffProfile, type StaffProfile } from "../services/staffService";
+import { clearStaffSession } from "../services/authSession";
 
 function StaffLayout() {
   const navigate = useNavigate();
@@ -23,9 +24,7 @@ function StaffLayout() {
         if (!active) return;
         console.error("Failed to load staff profile:", cause);
         setError(cause instanceof Error ? cause.message : "Unable to load staff profile.");
-        localStorage.removeItem("staffToken");
-        localStorage.removeItem("staffUser");
-        localStorage.removeItem("staffRestaurant");
+        clearStaffSession();
       });
     return () => {
       active = false;
@@ -33,9 +32,7 @@ function StaffLayout() {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("staffToken");
-    localStorage.removeItem("staffUser");
-    localStorage.removeItem("staffRestaurant");
+    clearStaffSession();
     navigate("/staff/login", { replace: true });
   };
 

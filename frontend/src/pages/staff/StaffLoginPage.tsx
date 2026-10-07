@@ -5,7 +5,7 @@ import { LockKeyhole, Mail, UtensilsCrossed } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { apiRequest } from "../../services/api";
-import { clearPortalSessions } from "../../services/authSession";
+import { clearStaffSession } from "../../services/authSession";
 
 interface LoginResponse {
   success: boolean;
@@ -50,7 +50,7 @@ function StaffLoginPage() {
         setError("This staff account is not assigned to a restaurant yet.");
         return;
       }
-      clearPortalSessions();
+      clearStaffSession();
       localStorage.setItem("staffToken", response.data.token);
       localStorage.setItem("staffUser", JSON.stringify(response.data.user));
       navigate("/staff", { replace: true });
