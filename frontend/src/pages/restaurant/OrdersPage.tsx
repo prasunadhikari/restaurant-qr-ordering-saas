@@ -13,6 +13,11 @@ import type {
 
 const statuses: Array<OrderStatus | "All"> = [
   "All",
+  "pending",
+  "accepted",
+  "preparing",
+  "ready",
+  "served",
   "New",
   "Preparing",
   "Ready",
@@ -20,6 +25,10 @@ const statuses: Array<OrderStatus | "All"> = [
 ];
 
 const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
+  pending: "accepted",
+  accepted: "preparing",
+  preparing: "ready",
+  ready: "served",
   New: "Preparing",
   Preparing: "Ready",
   Ready: "Served",
@@ -122,7 +131,7 @@ function OrdersPage() {
         <div className="space-y-4">
           {visibleOrders.map((order) => {
             const next = nextStatus[order.status];
-            const Icon = order.status === "New" ? BellRing : order.status === "Preparing" ? LoaderCircle : CheckCircle2;
+            const Icon = order.status === "New" || order.status === "pending" ? BellRing : order.status === "Preparing" || order.status === "preparing" || order.status === "accepted" ? LoaderCircle : CheckCircle2;
             return (
               <Card key={order._id} padding="none">
                 <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -133,12 +142,31 @@ function OrdersPage() {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">{order.status}</span>
                     {next && <button type="button" disabled={updating === order._id} onClick={() => void changeStatus(order, next)} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{updating === order._id ? "Updating…" : `Mark ${next.toLowerCase()}`}</button>}
-                    {order.status === "Served" && <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 size={14} /> Complete</span>}
+                    {(order.status === "Served" || order.status === "served") && <span className="inline-flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 size={14} /> Complete</span>}
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    {order.items.map((item, index) => <p key={`${item.name}-${index}`} className="text-sm text-slate-600">{item.quantity} × {item.name} <span className="text-slate-400">· ₨ {(item.unitPrice * item.quantity).toLocaleString()}</span></p>)}
+                    {order.items.map((item, index) => (
+                      <div key={`${item.name}-${index}`}>
+                        <p className="text-sm text-slate-600">
+                          {item.quantity} × {item.name}{" "}
+                          <span className="text-slate-400">
+                            · ₨ {(item.unitPrice * item.quantity).toLocaleString()}
+                          </span>
+                        </p>
+                        {item.specialInstructions && (
+                          <p className="ml-4 text-xs text-amber-700">
+                            Note: {item.specialInstructions}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                    {order.specialInstructions && (
+                      <p className="text-xs font-medium text-amber-700">
+                        Order note: {order.specialInstructions}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-sm font-bold text-slate-900"><Clock3 size={15} className="text-slate-400" />Total ₨ {order.total.toLocaleString()}</div>
                 </div>

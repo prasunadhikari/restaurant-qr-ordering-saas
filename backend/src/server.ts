@@ -7,6 +7,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import restaurantRoutes from "./routes/restaurantRoutes.js";
 import restaurantDataRoutes from "./routes/restaurantDataRoutes.js";
+import publicCustomerRoutes from "./routes/publicCustomerRoutes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/restaurants", restaurantRoutes);
 app.use("/api/restaurant", restaurantDataRoutes);
+app.use("/api/public", publicCustomerRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => {

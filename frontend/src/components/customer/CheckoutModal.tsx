@@ -9,10 +9,10 @@ interface CheckoutModalProps {
   onClose: () => void;
   items: CartItem[];
   tableNumber: string;
-  onPlaceOrder: (
-    customerName: string,
-    orderNote: string,
-  ) => void;
+  restaurantOpen: boolean;
+  submitting: boolean;
+  error: string;
+  onPlaceOrder: (orderNote: string) => void;
 }
 
 function CheckoutModal({
@@ -20,9 +20,11 @@ function CheckoutModal({
   onClose,
   items,
   tableNumber,
+  restaurantOpen,
+  submitting,
+  error,
   onPlaceOrder,
 }: CheckoutModalProps) {
-  const [customerName, setCustomerName] = useState("");
   const [orderNote, setOrderNote] = useState("");
 
   const itemCount = useMemo(
@@ -45,16 +47,13 @@ function CheckoutModal({
   );
 
   const handleClose = () => {
-    setCustomerName("");
+    if (submitting) return;
     setOrderNote("");
     onClose();
   };
 
   const handlePlaceOrder = () => {
-    onPlaceOrder(
-      customerName.trim(),
-      orderNote.trim(),
-    );
+    onPlaceOrder(orderNote.trim());
   };
 
   return (
@@ -98,7 +97,7 @@ function CheckoutModal({
           <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
             {items.map((cartItem) => (
               <div
-                key={cartItem.item.id}
+                key={cartItem.lineId}
                 className="flex gap-3 p-3"
               >
                 <img
@@ -141,31 +140,7 @@ function CheckoutModal({
           </div>
         </div>
 
-        {/* Customer details */}
         <div className="space-y-4">
-          <div>
-            <label
-              htmlFor="customer-name"
-              className="mb-2 block text-sm font-semibold text-slate-700"
-            >
-              Your name{" "}
-              <span className="font-normal text-slate-400">
-                (optional)
-              </span>
-            </label>
-
-            <input
-              id="customer-name"
-              type="text"
-              value={customerName}
-              onChange={(event) =>
-                setCustomerName(event.target.value)
-              }
-              placeholder="e.g. Prasun"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-            />
-          </div>
-
           <div>
             <label
               htmlFor="order-note"
@@ -213,14 +188,28 @@ function CheckoutModal({
           </div>
         </div>
 
+        {!restaurantOpen && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            This restaurant is currently closed and cannot accept orders.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         {/* Place order */}
         <Button
           type="button"
           size="lg"
           fullWidth
+          disabled={!restaurantOpen || submitting}
           onClick={handlePlaceOrder}
         >
-          Place order · NPR {subtotal.toLocaleString()}
+          {submitting
+            ? "Placing order…"
+            : `Place order · NPR ${subtotal.toLocaleString()}`}
         </Button>
 
         <p className="text-center text-xs leading-5 text-slate-400">

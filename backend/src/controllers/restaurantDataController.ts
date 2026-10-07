@@ -609,7 +609,17 @@ export const updateOrderStatus = async (
   const owner = getOwnerRequest(req, res);
   if (!owner) return;
   const id = String(req.params.id);
-  const statuses: OrderStatus[] = ["New", "Preparing", "Ready", "Served"];
+  const statuses: OrderStatus[] = [
+    "pending",
+    "accepted",
+    "preparing",
+    "ready",
+    "served",
+    "New",
+    "Preparing",
+    "Ready",
+    "Served",
+  ];
   if (!isValidId(id) || !statuses.includes(req.body.status)) {
     res.status(400).json({ success: false, message: "A valid order and status are required" });
     return;
@@ -657,7 +667,17 @@ export const getAnalytics = async (
       }),
       Order.countDocuments({
         restaurantId: owner.restaurantId,
-        status: { $in: ["New", "Preparing", "Ready"] },
+        status: {
+          $in: [
+            "pending",
+            "accepted",
+            "preparing",
+            "ready",
+            "New",
+            "Preparing",
+            "Ready",
+          ],
+        },
       }),
     ]);
 

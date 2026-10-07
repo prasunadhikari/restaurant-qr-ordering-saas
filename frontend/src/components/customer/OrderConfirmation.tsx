@@ -1,141 +1,119 @@
+import type { CustomerOrder } from "../../services/customerService";
+
 interface OrderConfirmationProps {
-  orderNumber: string;
-  tableNumber: string;
+  order: CustomerOrder;
   itemCount: number;
-  total: number;
-  onBackToMenu: () => void;
+  onContinueBrowsing: () => void;
 }
 
+const orderStages = [
+  { status: "pending", label: "Pending" },
+  { status: "accepted", label: "Accepted" },
+  { status: "preparing", label: "Preparing" },
+  { status: "ready", label: "Ready" },
+  { status: "served", label: "Served" },
+] as const;
+
 function OrderConfirmation({
-  orderNumber,
-  tableNumber,
+  order,
   itemCount,
-  total,
-  onBackToMenu,
+  onContinueBrowsing,
 }: OrderConfirmationProps) {
+  const currentIndex = orderStages.findIndex(
+    (stage) => stage.status === order.status,
+  );
+  const currentStage = orderStages[Math.max(0, currentIndex)];
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-        {/* Success header */}
-        <div className="bg-emerald-600 px-6 pb-8 pt-10 text-center text-white">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-3xl shadow-lg">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-confirmation-title"
+        className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+      >
+        <div className="bg-[#173b32] px-6 pb-8 pt-9 text-center text-white">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-2xl">
             ✓
           </div>
-
-          <h1 className="mt-5 text-2xl font-bold">
-            Order placed!
+          <h1 id="order-confirmation-title" className="mt-4 text-2xl font-semibold">
+            Order placed
           </h1>
-
-          <p className="mt-2 text-sm text-emerald-100">
-            Your order has been sent to the restaurant.
+          <p className="mt-2 text-sm text-white/75">
+            {order.restaurantName} · Table {order.tableNumber}
           </p>
         </div>
 
         <div className="space-y-6 p-6">
-          {/* Order number */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Order number
             </p>
-
             <p className="mt-1 text-2xl font-bold tracking-wide text-slate-900">
-              {orderNumber}
+              {order.orderNumber}
             </p>
+            <p className="mt-2 text-sm text-slate-500">
+              {itemCount} {itemCount === 1 ? "item" : "items"} · ₨{" "}
+              {order.total.toLocaleString()}
+            </p>
+          </div>
 
-            <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-500">
-              <span>Table {tableNumber}</span>
-              <span>•</span>
-              <span>
-                {itemCount}{" "}
-                {itemCount === 1 ? "item" : "items"}
+          <div id="order-progress">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold text-slate-900">Track your order</h2>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold capitalize text-emerald-800">
+                {currentStage.label}
               </span>
             </div>
+            <ol className="mt-5 grid grid-cols-5 gap-1" aria-label="Order progress">
+              {orderStages.map((stage, index) => {
+                const complete = index < currentIndex;
+                const current = index === currentIndex;
+                return (
+                  <li key={stage.status} className="text-center">
+                    <div
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
+                        complete || current
+                          ? "bg-[#173b32] text-white"
+                          : "bg-slate-100 text-slate-400"
+                      }`}
+                      aria-current={current ? "step" : undefined}
+                    >
+                      {complete ? "✓" : index + 1}
+                    </div>
+                    <span
+                      className={`mt-2 block text-[10px] leading-4 ${
+                        complete || current ? "font-semibold text-slate-800" : "text-slate-400"
+                      }`}
+                    >
+                      {stage.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="mt-3 text-center text-xs text-slate-500">
+              This page updates as the restaurant moves your order along.
+            </p>
           </div>
 
-          {/* Current status */}
-          <div>
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900">
-                Order status
-              </h2>
-
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                Preparing
-              </span>
-            </div>
-
-            <div className="mt-5">
-              <div className="relative flex items-start justify-between">
-                <div className="absolute left-5 right-5 top-5 h-0.5 bg-slate-200" />
-
-                <div className="relative z-10 flex w-1/4 flex-col items-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white ring-4 ring-white">
-                    ✓
-                  </div>
-
-                  <span className="mt-2 text-center text-xs font-semibold text-emerald-700">
-                    Received
-                  </span>
-                </div>
-
-                <div className="relative z-10 flex w-1/4 flex-col items-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white ring-4 ring-white">
-                    2
-                  </div>
-
-                  <span className="mt-2 text-center text-xs font-semibold text-blue-700">
-                    Preparing
-                  </span>
-                </div>
-
-                <div className="relative z-10 flex w-1/4 flex-col items-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-sm font-bold text-slate-400 ring-4 ring-white">
-                    3
-                  </div>
-
-                  <span className="mt-2 text-center text-xs text-slate-400">
-                    Ready
-                  </span>
-                </div>
-
-                <div className="relative z-10 flex w-1/4 flex-col items-center">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-sm font-bold text-slate-400 ring-4 ring-white">
-                    4
-                  </div>
-
-                  <span className="mt-2 text-center text-xs text-slate-400">
-                    Served
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <a
+              href="#order-progress"
+              className="rounded-xl border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Track order
+            </a>
+            <button
+              type="button"
+              onClick={onContinueBrowsing}
+              className="rounded-xl bg-[#173b32] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#245747]"
+            >
+              Continue browsing
+            </button>
           </div>
-
-          {/* Total */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-5">
-            <span className="text-sm font-semibold text-slate-600">
-              Order total
-            </span>
-
-            <span className="text-xl font-bold text-slate-900">
-              NPR {total.toLocaleString()}
-            </span>
-          </div>
-
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-center text-xs leading-5 text-amber-700">
-            Please stay at your table. The restaurant will
-            update your order status as it is prepared.
-          </p>
-
-          <button
-            type="button"
-            onClick={onBackToMenu}
-            className="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            Back to menu
-          </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -26,7 +26,16 @@ export interface RestaurantTable {
   status: "available" | "occupied";
 }
 
-export type OrderStatus = "New" | "Preparing" | "Ready" | "Served";
+export type OrderStatus =
+  | "pending"
+  | "accepted"
+  | "preparing"
+  | "ready"
+  | "served"
+  | "New"
+  | "Preparing"
+  | "Ready"
+  | "Served";
 
 export interface RestaurantOrder {
   _id: string;
@@ -34,7 +43,13 @@ export interface RestaurantOrder {
   status: OrderStatus;
   total: number;
   createdAt: string;
-  items: Array<{ name: string; quantity: number; unitPrice: number }>;
+  specialInstructions?: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    specialInstructions?: string;
+  }>;
   tableId: { _id: string; tableNumber: string } | string;
 }
 

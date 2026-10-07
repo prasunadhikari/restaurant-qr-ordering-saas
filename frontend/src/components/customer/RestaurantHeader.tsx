@@ -4,7 +4,6 @@ interface RestaurantHeaderProps {
   type: string;
   tableNumber: string;
   isOpen: boolean;
-  rating?: number;
   coverImage: string;
   logo?: string;
 }
@@ -15,21 +14,22 @@ function RestaurantHeader({
   type,
   tableNumber,
   isOpen,
-  rating = 4.8,
   coverImage,
   logo,
 }: RestaurantHeaderProps) {
   return (
     <header className="bg-white">
       {/* Cover */}
-      <div className="relative h-48 w-full overflow-hidden sm:h-64">
-        <img
-          src={coverImage}
-          alt={`${restaurantName} cover`}
-          className="h-full w-full object-cover"
-        />
+      <div className="relative h-48 w-full overflow-hidden bg-[#213d32] sm:h-64">
+        {coverImage && (
+          <img
+            src={coverImage}
+            alt={`${restaurantName} dining`}
+            className="h-full w-full object-cover"
+          />
+        )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
 
         <div className="absolute right-4 top-4">
           <span
@@ -64,18 +64,18 @@ function RestaurantHeader({
 
         <div className="mt-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
               {restaurantName}
             </h1>
-
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-              ★ {rating.toFixed(1)}
-            </span>
           </div>
 
-          <p className="mt-1 text-sm text-slate-500">
-            {type} · {location}
-          </p>
+          {(type || location) && (
+            <p className="mt-1 text-sm text-slate-500">
+              {type}
+              {type && location ? " · " : ""}
+              {location}
+            </p>
+          )}
 
           <div className="mt-4 flex items-center gap-2">
             <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">

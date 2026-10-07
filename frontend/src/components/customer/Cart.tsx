@@ -2,6 +2,7 @@ import type { MenuItem } from "../../types/menu";
 import Button from "../ui/Button";
 
 export interface CartItem {
+  lineId: string;
   item: MenuItem;
   quantity: number;
   note?: string;
@@ -9,9 +10,9 @@ export interface CartItem {
 
 interface CartProps {
   items: CartItem[];
-  onIncrease: (itemId: string) => void;
-  onDecrease: (itemId: string) => void;
-  onRemove: (itemId: string) => void;
+  onIncrease: (lineId: string) => void;
+  onDecrease: (lineId: string) => void;
+  onRemove: (lineId: string) => void;
   onCheckout: () => void;
 }
 
@@ -64,7 +65,7 @@ function Cart({
           <div className="max-h-[55vh] overflow-y-auto border-t border-slate-100 px-3 py-2 sm:px-4">
             {items.map((cartItem) => (
               <div
-                key={cartItem.item.id}
+                key={cartItem.lineId}
                 className="flex gap-3 border-b border-slate-100 py-3 last:border-b-0"
               >
                 <img
@@ -87,7 +88,7 @@ function Cart({
 
                     <button
                       type="button"
-                      onClick={() => onRemove(cartItem.item.id)}
+                      onClick={() => onRemove(cartItem.lineId)}
                       className="shrink-0 text-xs font-medium text-red-500 hover:text-red-700"
                     >
                       Remove
@@ -104,7 +105,7 @@ function Cart({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => onDecrease(cartItem.item.id)}
+                        onClick={() => onDecrease(cartItem.lineId)}
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-semibold text-slate-700 hover:bg-slate-50"
                         aria-label={`Decrease ${cartItem.item.name}`}
                       >
@@ -117,7 +118,7 @@ function Cart({
 
                       <button
                         type="button"
-                        onClick={() => onIncrease(cartItem.item.id)}
+                        onClick={() => onIncrease(cartItem.lineId)}
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-semibold text-slate-700 hover:bg-slate-50"
                         aria-label={`Increase ${cartItem.item.name}`}
                       >
