@@ -7,6 +7,7 @@ import MenuItem from "../models/MenuItem.js";
 import Order, { type OrderPaymentMethod } from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
+import TableSession from "../models/TableSession.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
 
@@ -95,6 +96,110 @@ const getPublicContext = async (
     isActive: { $ne: false },
   });
   return { restaurant, table };
+};
+
+const getOrCreateActiveTableSession = async (
+  restaurantId: mongoose.Types.ObjectId,
+  tableId: mongoose.Types.ObjectId,
+  tableNumber: string,
+) => {
+  const existing = await TableSession.findOne({
+    restaurantId,
+    tableId,
+    status: "active",
+  });
+  if (existing) return existing;
+
+  try {
+    return await TableSession.create({
+      restaurantId,
+      tableId,
+      tableNumber,
+      sessionToken: randomUUID(),
+      status: "active",
+      startedAt: new Date(),
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === 11000
+    ) {
+      const concurrentSession = await TableSession.findOne({
+        restaurantId,
+        tableId,
+        status: "active",
+      });
+      if (concurrentSession) return concurrentSession;
+    }
+    throw error;
+  }
+};
+
+export const getOrCreatePublicTableSession = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { restaurant, table } = await getPublicContext(
+      String(req.params.restaurantSlug),
+      String(req.params.tableNumber),
+    );
+    if (!restaurant || !table) {
+      res.status(404).json({ success: false, message: "Restaurant or table not found" });
+      return;
+    }
+
+    const session = req.method === "POST"
+      ? await getOrCreateActiveTableSession(
+          restaurant._id,
+          table._id,
+          table.tableNumber,
+        )
+      : await TableSession.findOne({
+          restaurantId: restaurant._id,
+          tableId: table._id,
+          status: "active",
+        });
+    if (!session) {
+      res.json({ success: true, data: { session: null, orders: [] } });
+      return;
+    }
+    const orders = await Order.find({
+      restaurantId: restaurant._id,
+      tableId: table._id,
+      tableSessionId: session._id,
+    }).sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      data: {
+        session: {
+          sessionToken: session.sessionToken,
+          status: session.status,
+          tableNumber: session.tableNumber,
+          startedAt: session.startedAt,
+        },
+        orders: orders.map((order) => ({
+          orderNumber: order.orderNumber,
+          trackingToken: order.trackingToken,
+          tableSessionId: order.tableSessionId?.toString(),
+          status: order.status,
+          declineReason: order.declineReason,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus ?? "unpaid",
+          total: order.total,
+          createdAt: order.createdAt,
+          restaurantName: restaurant.name,
+          restaurantSlug: restaurant.slug,
+          tableNumber: table.tableNumber,
+          items: order.items,
+        })),
+      },
+    });
+  } catch (error) {
+    handleError(error, res, "Failed to load table session");
+  }
 };
 
 export const getPublicRestaurantMenu = async (
@@ -285,6 +390,11 @@ export const createCustomerOrder = async (
     const order = await Order.create({
       restaurantId: restaurant._id,
       tableId: table._id,
+      tableSessionId: (await getOrCreateActiveTableSession(
+        restaurant._id,
+        table._id,
+        table.tableNumber,
+      ))._id,
       orderNumber: randomBytes(4).toString("hex").toUpperCase(),
       trackingToken: randomUUID(),
       status: "pending",
@@ -299,6 +409,7 @@ export const createCustomerOrder = async (
       success: true,
       data: {
         order: {
+          tableSessionId: order.tableSessionId?.toString(),
           orderNumber: order.orderNumber,
           trackingToken: order.trackingToken,
           status: order.status,
@@ -347,6 +458,7 @@ export const getCustomerOrder = async (
         order: {
           orderNumber: order.orderNumber,
           trackingToken: order.trackingToken,
+          tableSessionId: order.tableSessionId?.toString(),
           status: order.status,
           declineReason: order.declineReason,
           paymentMethod: order.paymentMethod,

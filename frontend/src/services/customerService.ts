@@ -66,6 +66,7 @@ export type CustomerPaymentStatus =
 export interface CustomerOrder {
   orderNumber: string;
   trackingToken?: string;
+  tableSessionId?: string;
   status: CustomerOrderStatus;
   declineReason?: string;
   paymentMethod?: CustomerPaymentMethod;
@@ -83,6 +84,14 @@ export interface CustomerOrder {
   }>;
 }
 
+export interface CustomerTableSession {
+  sessionToken: string;
+  status: "active";
+  tableNumber: string;
+  startedAt: string;
+  orders: CustomerOrder[];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -94,6 +103,32 @@ const restaurantTableEndpoint = (
   tableNumber: string,
 ) =>
   `/public/restaurants/${encodeURIComponent(restaurantSlug)}/t/${encodeURIComponent(tableNumber)}`;
+
+const loadCustomerTableSession = async (
+  restaurantSlug: string,
+  tableNumber: string,
+  method: "GET" | "POST",
+): Promise<CustomerTableSession | null> => {
+  const data = (
+    await apiRequest<ApiResponse<{
+      session: Omit<CustomerTableSession, "orders"> | null;
+      orders: CustomerOrder[];
+    }>>(`${restaurantTableEndpoint(restaurantSlug, tableNumber)}/session`, { method })
+  ).data;
+  return data.session ? { ...data.session, orders: data.orders } : null;
+};
+
+export const getOrCreateCustomerTableSession = (
+  restaurantSlug: string,
+  tableNumber: string,
+): Promise<CustomerTableSession | null> =>
+  loadCustomerTableSession(restaurantSlug, tableNumber, "POST");
+
+export const getActiveCustomerTableSession = (
+  restaurantSlug: string,
+  tableNumber: string,
+): Promise<CustomerTableSession | null> =>
+  loadCustomerTableSession(restaurantSlug, tableNumber, "GET");
 
 export const getPublicMenu = async (
   restaurantSlug: string,

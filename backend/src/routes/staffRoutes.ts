@@ -6,6 +6,7 @@ import {
   getStaffOrders,
   updateStaffOrderStatus,
 } from "../controllers/staffController.js";
+import { closeManagerTableSession } from "../controllers/managerController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import staffMiddleware from "../middleware/staffMiddleware.js";
 
@@ -17,5 +18,6 @@ router.get("/me", getStaffMe);
 router.get("/orders", getStaffOrders);
 router.get("/orders/:id", getStaffOrder);
 router.patch("/orders/:id/status", updateStaffOrderStatus);
+router.post("/tables/:id/session/close", closeManagerTableSession);
 
 export default router;

@@ -4,6 +4,7 @@ import {
   createManagerCategory,
   createManagerMenuItem,
   createManagerTable,
+  closeManagerTableSession,
   deleteManagerCategory,
   deleteManagerMenuItem,
   deleteManagerTable,
@@ -45,6 +46,7 @@ router.post("/menu/items/:id/image", uploadMenuImage, uploadManagerMenuItemImage
 router.patch("/menu/items/:id", updateManagerMenuItem);
 router.delete("/menu/items/:id", deleteManagerMenuItem);
 router.get("/tables", getManagerTables);
+router.post("/tables/:id/session/close", closeManagerTableSession);
 router.post("/tables", createManagerTable);
 router.patch("/tables/:id", updateManagerTable);
 router.delete("/tables/:id", deleteManagerTable);

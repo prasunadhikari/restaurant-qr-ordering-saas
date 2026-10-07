@@ -187,6 +187,12 @@ export const updateManagerTable = async (
 export const deleteManagerTable = async (id: string): Promise<void> => {
   await managerRequest(`/manager/tables/${encodeURIComponent(id)}`, { method: "DELETE" });
 };
+export const closeManagerTableSession = async (
+  tableId: string,
+): Promise<{ tableNumber: string; status: "closed"; startedAt: string; closedAt: string }> =>
+  (await managerRequest<{
+    session: { tableNumber: string; status: "closed"; startedAt: string; closedAt: string };
+  }>(`/manager/tables/${encodeURIComponent(tableId)}/session/close`, { method: "POST" })).session;
 export const getManagerPayments = async (): Promise<ManagerOrder[]> =>
   (await managerRequest<{ payments: ManagerOrder[] }>("/manager/payments")).payments;
 export const updateManagerPayment = async (

@@ -11,11 +11,14 @@ import RestaurantHeader from "../../components/customer/RestaurantHeader";
 import SearchBar from "../../components/customer/SearchBar";
 import type { CustomerOrder } from "../../services/customerService";
 import {
+  getActiveCustomerTableSession,
   getCustomerOrder,
+  getOrCreateCustomerTableSession,
   getPublicMenu,
   placeCustomerOrder,
   updateCustomerOrderPayment,
   type CustomerPaymentMethod,
+  type CustomerTableSession,
   type PublicMenu,
 } from "../../services/customerService";
 import type { MenuCategory, MenuItem } from "../../types/menu";
@@ -26,7 +29,6 @@ function RestaurantMenuPage() {
     tableNumber: string;
   }>();
   const routeKey = `${restaurantSlug}\u0000${tableNumber}`;
-  const storedOrderKey = `aagan:last-order:${restaurantSlug}:${tableNumber}`;
   const [menuState, setMenuState] = useState<{
     routeKey: string;
     menu: PublicMenu | null;
@@ -45,6 +47,11 @@ function RestaurantMenuPage() {
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [trackingError, setTrackingError] = useState("");
   const [lastOrder, setLastOrder] = useState<CustomerOrder | null>(null);
+  const [tableSessionState, setTableSessionState] = useState<{
+    routeKey: string;
+    session: CustomerTableSession | null;
+    loading: boolean;
+  }>({ routeKey: "", session: null, loading: true });
   const menu = menuState.routeKey === routeKey ? menuState.menu : null;
   const loading = menuState.routeKey !== routeKey || menuState.loading;
   const loadError =
@@ -84,54 +91,51 @@ function RestaurantMenuPage() {
   }, [restaurantSlug, tableNumber, routeKey]);
 
   useEffect(() => {
-    let active = true;
-    let trackingToken: string | null;
-    try {
-      trackingToken = window.sessionStorage.getItem(storedOrderKey);
-    } catch (error) {
-      console.warn("Unable to restore the previous order from this browser tab:", error);
-      return () => {
-        active = false;
-      };
-    }
-    if (!trackingToken) return () => {
-      active = false;
-    };
+    if (menuState.routeKey !== routeKey || !menuState.menu) return;
 
-    getCustomerOrder(trackingToken)
-      .then((order) => {
-        if (
-          active &&
-          order.restaurantSlug === restaurantSlug &&
-          order.tableNumber === tableNumber
-        ) {
-          setLastOrder(order);
-        } else if (active) {
+    let active = true;
+    let firstLoad = true;
+    let refreshInFlight = false;
+    const refreshTableSession = async () => {
+      if (refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        const session = firstLoad
+          ? await getOrCreateCustomerTableSession(restaurantSlug, tableNumber)
+          : await getActiveCustomerTableSession(restaurantSlug, tableNumber);
+        firstLoad = false;
+        if (!active) return;
+        setTableSessionState({ routeKey, session, loading: false });
+        if (session) {
           try {
-            window.sessionStorage.removeItem(storedOrderKey);
+            window.sessionStorage.setItem(
+              `aagan:table-session:${restaurantSlug}:${tableNumber}`,
+              session.sessionToken,
+            );
           } catch (error) {
-            console.warn("Unable to remove an order from another table:", error);
+            console.warn("Unable to cache the table session token:", error);
           }
         }
-      })
-      .catch((error: unknown) => {
+        if (session) setTrackingError("");
+      } catch (error) {
+        firstLoad = false;
         if (!active) return;
-        console.error("Failed to restore customer order:", error);
+        console.error("Failed to restore active customer table session:", error);
         setTrackingError(
-          error instanceof Error
-            ? error.message
-            : "Unable to restore the previous order.",
+          error instanceof Error ? error.message : "Unable to restore table orders.",
         );
-        try {
-          window.sessionStorage.removeItem(storedOrderKey);
-        } catch (storageError) {
-          console.warn("Unable to remove an expired order from this browser tab:", storageError);
-        }
-      });
+        setTableSessionState({ routeKey, session: null, loading: false });
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+    void refreshTableSession();
+    const interval = window.setInterval(() => void refreshTableSession(), 10000);
     return () => {
       active = false;
+      window.clearInterval(interval);
     };
-  }, [restaurantSlug, storedOrderKey, tableNumber]);
+  }, [menuState.menu, menuState.routeKey, restaurantSlug, routeKey, tableNumber]);
 
   useEffect(() => {
     const trackingToken = lastOrder?.trackingToken;
@@ -153,6 +157,19 @@ function RestaurantMenuPage() {
               ? { ...current, ...updatedOrder, trackingToken }
               : current,
           );
+          setTableSessionState((current) => current.session
+            ? {
+                ...current,
+                session: {
+                  ...current.session,
+                  orders: current.session.orders.map((order) =>
+                    order.trackingToken === trackingToken
+                      ? { ...order, ...updatedOrder, trackingToken }
+                      : order,
+                  ),
+                },
+              }
+            : current);
           setTrackingError("");
         }
       } catch (error) {
@@ -274,10 +291,38 @@ function RestaurantMenuPage() {
         })),
         orderNote,
       );
+      try {
+        const refreshedSession = await getActiveCustomerTableSession(
+          restaurant.slug,
+          table.tableNumber,
+        );
+        if (refreshedSession) {
+          setTableSessionState({ routeKey, session: refreshedSession, loading: false });
+        }
+      } catch (sessionError) {
+        console.error("Order was placed but the active table session could not refresh:", sessionError);
+      }
       setLastOrder(order);
+      setTableSessionState((current) => current.routeKey === routeKey && current.session
+        ? {
+            ...current,
+            session: {
+              ...current.session,
+              orders: [
+                order,
+                ...current.session.orders.filter(
+                  (entry) => entry.trackingToken !== order.trackingToken,
+                ),
+              ],
+            },
+          }
+        : current);
       if (order.trackingToken) {
         try {
-          window.sessionStorage.setItem(storedOrderKey, order.trackingToken);
+          window.sessionStorage.setItem(
+            `aagan:last-order:${restaurantSlug}:${tableNumber}`,
+            order.trackingToken,
+          );
         } catch (error) {
           console.warn("Unable to remember this order in the current browser tab:", error);
         }
@@ -309,6 +354,19 @@ function RestaurantMenuPage() {
         action,
       );
       setLastOrder((current) => (current ? { ...current, ...payment } : current));
+      setTableSessionState((current) => current.session
+        ? {
+            ...current,
+            session: {
+              ...current.session,
+              orders: current.session.orders.map((order) =>
+                order.trackingToken === lastOrder.trackingToken
+                  ? { ...order, ...payment }
+                  : order,
+              ),
+            },
+          }
+        : current);
       return true;
     } catch (error) {
       console.error("Failed to update customer payment:", error);
@@ -352,6 +410,19 @@ function RestaurantMenuPage() {
   }
 
   const itemCount = cartItems.reduce((sum, line) => sum + line.quantity, 0);
+  const activeSession =
+    tableSessionState.routeKey === routeKey ? tableSessionState.session : null;
+  const sessionOrders = activeSession?.orders ?? [];
+  const activeOrderCount = sessionOrders.filter((order) =>
+    !["served", "cancelled"].includes(order.status.toLowerCase()),
+  ).length;
+  const visibleSessionOrders = sessionOrders.filter(
+    (order) => order.status.toLowerCase() !== "served",
+  );
+  const lastOrderBelongsToCurrentSession =
+    !lastOrder?.tableSessionId ||
+    sessionOrders.some((order) => order.trackingToken === lastOrder.trackingToken) ||
+    isOrderConfirmed;
 
   return (
     <div className="min-h-screen bg-[#f8f6f0] pb-32">
@@ -366,27 +437,48 @@ function RestaurantMenuPage() {
       />
 
       <main className="mx-auto max-w-6xl">
-        {lastOrder && !isOrderConfirmed && (
-          <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-2xl border border-[#d7e4dc] bg-white px-4 py-3 shadow-sm sm:mx-6">
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500">
-                Order {lastOrder.orderNumber}
-              </p>
-              <p className="mt-0.5 text-sm font-semibold capitalize text-[#173b32]">
-                {lastOrder.status}
-                {lastOrder.paymentStatus
-                  ? ` · Payment ${lastOrder.paymentStatus.replaceAll("_", " ")}`
-                  : ""}
-              </p>
+        {visibleSessionOrders.length > 0 && !isOrderConfirmed && (
+          <section aria-label="Your table orders" className="mx-4 mt-4 rounded-2xl border border-[#d7e4dc] bg-white p-4 shadow-sm sm:mx-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-[#173b32]">Welcome back 👋</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Table {table.tableNumber} · Your Table Orders · {activeOrderCount} active {activeOrderCount === 1 ? "order" : "orders"}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#edf3ec] px-3 py-1 text-xs font-semibold text-[#315b40]">Order more below</span>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsOrderConfirmed(true)}
-              className="shrink-0 rounded-xl bg-[#173b32] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#245747]"
-            >
-              Track order
-            </button>
-          </div>
+            <ul className="mt-3 divide-y divide-slate-100">
+              {visibleSessionOrders.map((order) => {
+                const cancelled = order.status.toLowerCase() === "cancelled";
+                return (
+                  <li key={order.trackingToken ?? order.orderNumber} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">Order #{order.orderNumber}</p>
+                      <p className={`mt-0.5 text-xs capitalize ${cancelled ? "text-red-700" : "text-slate-500"}`}>
+                        {order.status}{cancelled && order.declineReason ? ` · ${order.declineReason}` : ""}
+                        {order.paymentStatus ? ` · Payment ${order.paymentStatus.replaceAll("_", " ")}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="text-sm font-semibold">NPR {order.total.toLocaleString()}</span>
+                      <button
+                        type="button"
+                        disabled={!order.trackingToken}
+                        onClick={() => {
+                          setLastOrder(order);
+                          setIsOrderConfirmed(true);
+                        }}
+                        className="rounded-xl bg-[#173b32] px-3 py-2 text-xs font-semibold text-white hover:bg-[#245747] disabled:opacity-50"
+                      >
+                        Track
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         )}
 
         <div className="px-4 pb-4 pt-2 sm:px-8 sm:pb-6 sm:pt-3">
@@ -530,7 +622,7 @@ function RestaurantMenuPage() {
         error={orderError}
         onPlaceOrder={handlePlaceOrder}
       />
-      {lastOrder?.status.toLowerCase() === "cancelled" && !isOrderConfirmed && (
+      {lastOrderBelongsToCurrentSession && lastOrder?.status.toLowerCase() === "cancelled" && !isOrderConfirmed && (
         <div
           role="alert"
           className="fixed bottom-4 left-4 right-4 z-[70] mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-lg"
@@ -545,7 +637,7 @@ function RestaurantMenuPage() {
           </button>
         </div>
       )}
-      {isOrderConfirmed && lastOrder && (
+      {isOrderConfirmed && lastOrder && lastOrderBelongsToCurrentSession && (
         <>
           {trackingError && (
             <p

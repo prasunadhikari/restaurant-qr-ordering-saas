@@ -9,6 +9,7 @@ import MenuItem from "../models/MenuItem.js";
 import Order, { type OrderPaymentStatus, type OrderStatus } from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
+import TableSession from "../models/TableSession.js";
 import User from "../models/User.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
@@ -566,6 +567,83 @@ export const getManagerTables = async (
     res.json({ success: true, data: { tables } });
   } catch (error) {
     errorResponse(error, res, "Failed to load tables");
+  }
+};
+
+export const closeManagerTableSession = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const restaurantId =
+    req.user?.role === "restaurant_manager" || req.user?.role === "restaurant_staff"
+      ? req.user.restaurantId
+      : undefined;
+  const tableId = String(req.params.id);
+  if (!restaurantId) {
+    res.status(403).json({ success: false, message: "Manager account is not assigned to a restaurant" });
+    return;
+  }
+  if (!validId(tableId)) {
+    res.status(400).json({ success: false, message: "Invalid table ID" });
+    return;
+  }
+  try {
+    const table = await RestaurantTable.findOne({ _id: tableId, restaurantId });
+    if (!table) {
+      res.status(404).json({ success: false, message: "Table not found" });
+      return;
+    }
+    const session = await TableSession.findOne({
+      restaurantId,
+      tableId: table._id,
+      status: "active",
+    });
+    if (!session) {
+      res.status(404).json({ success: false, message: "There is no active session for this table" });
+      return;
+    }
+    const orders = await Order.find({
+      restaurantId,
+      tableId: table._id,
+      tableSessionId: session._id,
+    }).select("status paymentStatus");
+    const unsettled = orders.some((order) => {
+      const status = normalizedOrderStatus(order.status);
+      if (status === "cancelled") {
+        return ["pending", "pending_verification", "paid"].includes(order.paymentStatus);
+      }
+      return status !== "served" || order.paymentStatus !== "paid";
+    });
+    if (unsettled) {
+      res.status(409).json({
+        success: false,
+        message: "All orders in this session must be served and paid, or cancelled with no payment awaiting review, before closing the table",
+      });
+      return;
+    }
+
+    const closedSession = await TableSession.findOneAndUpdate(
+      { _id: session._id, restaurantId, status: "active" },
+      { $set: { status: "closed", closedAt: new Date() } },
+      { new: true, runValidators: true },
+    );
+    if (!closedSession) {
+      res.status(409).json({ success: false, message: "The table session has already been closed" });
+      return;
+    }
+    res.json({
+      success: true,
+      data: {
+        session: {
+          tableNumber: closedSession.tableNumber,
+          status: closedSession.status,
+          startedAt: closedSession.startedAt,
+          closedAt: closedSession.closedAt,
+        },
+      },
+    });
+  } catch (error) {
+    errorResponse(error, res, "Failed to close table session");
   }
 };
 

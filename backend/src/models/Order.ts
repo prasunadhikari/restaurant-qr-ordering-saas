@@ -23,6 +23,7 @@ export type OrderPaymentStatus =
 export interface IOrder extends Document {
   restaurantId: mongoose.Types.ObjectId;
   tableId: mongoose.Types.ObjectId;
+  tableSessionId?: mongoose.Types.ObjectId;
   orderNumber: string;
   trackingToken: string;
   status: OrderStatus;
@@ -54,6 +55,11 @@ const orderSchema = new Schema<IOrder>(
       type: Schema.Types.ObjectId,
       ref: "RestaurantTable",
       required: true,
+      index: true,
+    },
+    tableSessionId: {
+      type: Schema.Types.ObjectId,
+      ref: "TableSession",
       index: true,
     },
     orderNumber: { type: String, required: true, trim: true },
