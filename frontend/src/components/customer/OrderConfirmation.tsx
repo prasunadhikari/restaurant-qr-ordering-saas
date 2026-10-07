@@ -30,26 +30,28 @@ function OrderConfirmation({
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-confirmation-title"
-        className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/50 bg-[#fffefa] shadow-2xl"
       >
-        <div className="bg-[#173b32] px-6 pb-8 pt-9 text-center text-white">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-2xl">
+        <div className="relative overflow-hidden bg-[#173b32] px-6 pb-8 pt-9 text-center text-white">
+          <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full border border-white/10" />
+          <div className="absolute -right-2 -top-4 h-28 w-28 rounded-full border border-white/10" />
+          <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-2xl shadow-inner">
             ✓
           </div>
-          <h1 id="order-confirmation-title" className="mt-4 text-2xl font-semibold">
+          <h1 id="order-confirmation-title" className="relative mt-4 font-serif text-3xl font-semibold">
             Order placed
           </h1>
-          <p className="mt-2 text-sm text-white/75">
+          <p className="relative mt-2 text-sm text-white/75">
             {order.restaurantName} · Table {order.tableNumber}
           </p>
         </div>
 
         <div className="space-y-6 p-6">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+          <div className="rounded-2xl border border-[#e9e4d9] bg-[#f8f6f0] p-4 text-center">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Order number
             </p>
-            <p className="mt-1 text-2xl font-bold tracking-wide text-slate-900">
+            <p className="mt-1 font-serif text-2xl font-bold tracking-wide text-[#173b32]">
               {order.orderNumber}
             </p>
             <p className="mt-2 text-sm text-slate-500">
@@ -61,7 +63,7 @@ function OrderConfirmation({
           <div id="order-progress">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-bold text-slate-900">Track your order</h2>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold capitalize text-emerald-800">
+              <span className="rounded-full bg-[#edf3ec] px-3 py-1 text-xs font-semibold capitalize text-[#315b40]">
                 {currentStage.label}
               </span>
             </div>
@@ -74,7 +76,7 @@ function OrderConfirmation({
                     <div
                       className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
                         complete || current
-                          ? "bg-[#173b32] text-white"
+                          ? "bg-[#173b32] text-white shadow-sm shadow-[#173b32]/20"
                           : "bg-slate-100 text-slate-400"
                       }`}
                       aria-current={current ? "step" : undefined}
@@ -100,7 +102,7 @@ function OrderConfirmation({
           <div className="grid grid-cols-2 gap-3">
             <a
               href="#order-progress"
-              className="rounded-xl border border-slate-200 px-4 py-3.5 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-[#e5dfd2] px-4 py-3.5 text-center text-sm font-semibold text-slate-700 transition hover:bg-[#f8f6f0]"
             >
               Track order
             </a>

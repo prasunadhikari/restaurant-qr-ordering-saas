@@ -14,16 +14,16 @@ function CategoryTabs({
   return (
     <nav
       aria-label="Menu categories"
-      className="sticky top-0 z-20 border-y border-slate-200 bg-white/95 backdrop-blur"
+      className="sticky top-0 z-30 border-y border-[#e9e4d9] bg-[#f8f6f0]/95 shadow-sm backdrop-blur-xl"
     >
-      <div className="mx-auto flex max-w-4xl gap-2 overflow-x-auto px-4 py-3 scrollbar-hide sm:px-6">
+      <div className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 py-3 scrollbar-hide sm:px-8">
         <button
           type="button"
           onClick={() => onCategoryChange("all")}
           className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
             activeCategory === "all"
-              ? "bg-slate-900 text-white shadow-sm"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              ? "bg-[#173b32] text-white shadow-sm"
+              : "border border-[#e8e2d6] bg-white text-slate-600 hover:border-[#b28a50] hover:text-[#173b32]"
           }`}
         >
           All
@@ -36,8 +36,8 @@ function CategoryTabs({
             onClick={() => onCategoryChange(category.id)}
             className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
               activeCategory === category.id
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-[#173b32] text-white shadow-sm"
+                : "border border-[#e8e2d6] bg-white text-slate-600 hover:border-[#b28a50] hover:text-[#173b32]"
             }`}
           >
             {category.name}

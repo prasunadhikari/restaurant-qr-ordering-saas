@@ -63,15 +63,15 @@ function CheckoutModal({
       title="Review your order"
       size="lg"
     >
-      <div className="space-y-5">
+      <div className="max-h-[calc(100dvh-9rem)] space-y-5 overflow-y-auto pr-1">
         {/* Table information */}
-        <div className="flex items-center justify-between gap-4 rounded-2xl bg-emerald-50 p-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#dce6dd] bg-[#f1f5ef] p-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#69836e]">
               Dine-in order
             </p>
 
-            <p className="mt-1 text-base font-bold text-slate-900">
+            <p className="mt-1 font-serif text-lg font-semibold text-[#173b32]">
               Table {tableNumber}
             </p>
           </div>
@@ -94,7 +94,7 @@ function CheckoutModal({
             </span>
           </div>
 
-          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+          <div className="divide-y divide-[#eee8dc] rounded-2xl border border-[#e9e4d9]">
             {items.map((cartItem) => (
               <div
                 key={cartItem.lineId}
@@ -114,7 +114,7 @@ function CheckoutModal({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h4 className="truncate text-sm font-semibold text-slate-900">
+                      <h4 className="truncate font-serif text-sm font-semibold text-slate-900">
                         {cartItem.item.name}
                       </h4>
 
@@ -165,13 +165,13 @@ function CheckoutModal({
               }
               placeholder="Anything the restaurant should know?"
               rows={3}
-              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+              className="w-full resize-none rounded-xl border border-[#e5dfd2] bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#9b7540] focus:ring-4 focus:ring-[#b28a50]/10"
             />
           </div>
         </div>
 
         {/* Total */}
-        <div className="rounded-2xl bg-slate-50 p-4">
+        <div className="rounded-2xl bg-[#f6f4ee] p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-600">
               Subtotal
@@ -182,12 +182,12 @@ function CheckoutModal({
             </span>
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+          <div className="mt-3 flex items-center justify-between border-t border-[#e5dfd2] pt-3">
             <span className="text-base font-bold text-slate-900">
               Total
             </span>
 
-            <span className="text-xl font-bold text-emerald-600">
+            <span className="text-xl font-bold text-[#173b32]">
               NPR {subtotal.toLocaleString()}
             </span>
           </div>
@@ -209,6 +209,7 @@ function CheckoutModal({
           type="button"
           size="lg"
           fullWidth
+          className="bg-[#173b32] shadow-md shadow-[#173b32]/15 hover:bg-[#214d40] active:bg-[#102d25]"
           disabled={!restaurantOpen || submitting}
           onClick={handlePlaceOrder}
         >

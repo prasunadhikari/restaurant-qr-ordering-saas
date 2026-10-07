@@ -229,20 +229,24 @@ function RestaurantMenuPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f6f2] px-6">
-        <p className="text-sm font-medium text-slate-500">Preparing your menu…</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f6f0] px-6">
+        <div className="text-center">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-[#d8c9a8] border-t-[#173b32]" />
+          <p className="mt-4 font-serif text-lg font-semibold text-[#173b32]">Preparing your menu</p>
+          <p className="mt-1 text-xs text-slate-500">A moment while we set your table</p>
+        </div>
       </div>
     );
   }
 
   if (loadError || !menu || !restaurant || !table) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f6f2] px-5">
-        <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-2xl">
+      <main className="flex min-h-screen items-center justify-center bg-[#f8f6f0] px-5">
+        <section className="w-full max-w-md rounded-3xl border border-[#e9e4d9] bg-[#fffefa] p-8 text-center shadow-[0_14px_44px_rgba(32,38,32,0.08)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f4efe2] text-2xl">
             🍽️
           </div>
-          <h1 className="mt-4 text-xl font-semibold text-slate-900">
+          <h1 className="mt-4 font-serif text-2xl font-semibold text-[#173b32]">
             Menu unavailable
           </h1>
           <p role="alert" className="mt-2 text-sm leading-6 text-slate-500">
@@ -256,7 +260,7 @@ function RestaurantMenuPage() {
   const itemCount = cartItems.reduce((sum, line) => sum + line.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-[#f7f6f2] pb-36">
+    <div className="min-h-screen bg-[#f8f6f0] pb-32">
       <RestaurantHeader
         restaurantName={restaurant.name}
         location={restaurant.address || "Welcome"}
@@ -267,7 +271,7 @@ function RestaurantMenuPage() {
         logo={restaurant.logo}
       />
 
-      <main className="mx-auto max-w-5xl">
+      <main className="mx-auto max-w-6xl">
         {lastOrder && !isOrderConfirmed && (
           <div className="mx-4 mt-4 flex items-center justify-between gap-4 rounded-2xl border border-[#d7e4dc] bg-white px-4 py-3 shadow-sm sm:mx-6">
             <div className="min-w-0">
@@ -288,7 +292,20 @@ function RestaurantMenuPage() {
           </div>
         )}
 
-        <div className="px-4 py-5 sm:px-6">
+        <div className="px-4 pb-4 pt-2 sm:px-8 sm:pb-6 sm:pt-3">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9b7540]">
+                Made for your table
+              </p>
+              <h2 className="mt-1 font-serif text-2xl font-semibold text-[#173b32] sm:text-3xl">
+                Explore the menu
+              </h2>
+            </div>
+            <p className="hidden pb-1 text-xs text-slate-500 sm:block">
+              Choose a dish, then we’ll bring it to you.
+            </p>
+          </div>
           <SearchBar value={search} onChange={setSearch} />
         </div>
 
@@ -300,9 +317,9 @@ function RestaurantMenuPage() {
           />
         )}
 
-        <div className="px-4 py-6 sm:px-6">
+        <div className="px-4 py-6 sm:px-8">
           {!restaurant.isOpen && (
-            <p className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               The restaurant is currently closed. You can browse the menu, but
               orders are temporarily unavailable.
             </p>
@@ -341,15 +358,15 @@ function RestaurantMenuPage() {
                   id={`category-${category.id}`}
                   className="scroll-mt-20"
                 >
-                  <div className="mb-4">
-                    <h2 className="text-xl font-semibold text-slate-900">
+                  <div className="mb-4 border-b border-[#e9e4d9] pb-3">
+                    <h2 className="font-serif text-2xl font-semibold text-[#242a24]">
                       {category.name}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-xs text-slate-500">
                       {items.length} {items.length === 1 ? "dish" : "dishes"}
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                     {items.map((item) => (
                       <MenuItemCard
                         key={item.id}
@@ -363,19 +380,19 @@ function RestaurantMenuPage() {
             </div>
           ) : (
             <section>
-              <div className="mb-4">
-                <h2 className="text-xl font-semibold text-slate-900">
+              <div className="mb-4 border-b border-[#e9e4d9] pb-3">
+                <h2 className="font-serif text-2xl font-semibold text-[#242a24]">
                   {search.trim()
                     ? "Search results"
                     : categories.find((category) => category.id === activeCategory)
                         ?.name || "Menu"}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-xs text-slate-500">
                   {filteredItems.length}{" "}
                   {filteredItems.length === 1 ? "dish" : "dishes"}
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 {filteredItems.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -397,6 +414,7 @@ function RestaurantMenuPage() {
       />
       <Cart
         items={cartItems}
+        tableNumber={table.tableNumber}
         onIncrease={(lineId) => updateQuantity(lineId, 1)}
         onDecrease={(lineId) => updateQuantity(lineId, -1)}
         onRemove={removeItem}

@@ -35,7 +35,7 @@ function SearchBar({ value, onChange }: SearchBarProps) {
         onChange={handleChange}
         placeholder="Search food or drinks..."
         aria-label="Search food or drinks"
-        className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-10 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+        className="h-12 w-full rounded-2xl border border-[#e5dfd2] bg-white pl-11 pr-10 text-sm text-slate-900 shadow-[0_3px_12px_rgba(32,38,32,0.04)] outline-none transition placeholder:text-slate-400 focus:border-[#9b7540] focus:ring-4 focus:ring-[#b28a50]/10"
       />
 
       {value && (
