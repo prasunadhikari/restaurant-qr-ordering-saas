@@ -45,7 +45,7 @@ export const getManagerProfile = async (
     return;
   }
   try {
-    const restaurant = await Restaurant.findById(restaurantId).select("name slug");
+    const restaurant = await Restaurant.findById(restaurantId).select("name slug logo");
     if (!restaurant) {
       res.status(404).json({ success: false, message: "Assigned restaurant not found" });
       return;
@@ -54,7 +54,7 @@ export const getManagerProfile = async (
       success: true,
       data: {
         user: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role },
-        restaurant: { id: restaurant._id, name: restaurant.name, slug: restaurant.slug },
+        restaurant: { id: restaurant._id, name: restaurant.name, slug: restaurant.slug, logo: restaurant.logo },
       },
     });
   } catch (error) {

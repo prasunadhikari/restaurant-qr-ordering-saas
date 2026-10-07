@@ -34,6 +34,7 @@ import ManagerDashboardPage from "./pages/manager/ManagerDashboardPage";
 import ManagerOrdersPage from "./pages/manager/ManagerOrdersPage";
 import ManagerMenuPage from "./pages/manager/ManagerMenuPage";
 import ManagerTablesPage from "./pages/manager/ManagerTablesPage";
+import ManagerQRPage from "./pages/manager/ManagerQRPage";
 import ManagerBillsPage from "./pages/manager/ManagerBillsPage";
 import ManagerPaymentsPage from "./pages/manager/ManagerPaymentsPage";
 import ManagerManagementPage from "./pages/restaurant/ManagerManagementPage";
@@ -87,6 +88,7 @@ function App() {
             <Route path="/manager/orders" element={<ManagerOrdersPage />} />
             <Route path="/manager/menu" element={<ManagerMenuPage />} />
             <Route path="/manager/tables" element={<ManagerTablesPage />} />
+            <Route path="/manager/qr" element={<ManagerQRPage />} />
             <Route path="/manager/bills" element={<ManagerBillsPage />} />
             <Route path="/manager/payments" element={<ManagerPaymentsPage />} />
           </Route>

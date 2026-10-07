@@ -2,7 +2,7 @@ import { apiRequest, resolveMediaUrl } from "./api";
 
 export interface ManagerProfile {
   user: { id: string; name: string; email: string; role: "restaurant_manager" };
-  restaurant: { id: string; name: string; slug: string };
+  restaurant: { id: string; name: string; slug: string; logo?: string };
 }
 
 export interface ManagerOrder {
@@ -83,8 +83,16 @@ const json = (value: unknown): RequestInit => ({
   body: JSON.stringify(value),
 });
 
-export const getManagerProfile = async (): Promise<ManagerProfile> =>
-  managerRequest<ManagerProfile>("/manager/me");
+export const getManagerProfile = async (): Promise<ManagerProfile> => {
+  const profile = await managerRequest<ManagerProfile>("/manager/me");
+  return {
+    ...profile,
+    restaurant: {
+      ...profile.restaurant,
+      logo: profile.restaurant.logo ? resolveMediaUrl(profile.restaurant.logo) : "",
+    },
+  };
+};
 export const getManagerDashboard = async (): Promise<ManagerDashboard> =>
   managerRequest<ManagerDashboard>("/manager/dashboard");
 export const getManagerOrders = async (): Promise<ManagerOrder[]> =>

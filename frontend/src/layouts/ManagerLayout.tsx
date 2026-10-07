@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LogOut,
   ReceiptText,
+  QrCode,
   Store,
   Table2,
   Utensils,
@@ -23,6 +24,7 @@ const navigation = [
   { to: "/manager/bills", label: "Bills", icon: ReceiptText, end: false },
   { to: "/manager/menu", label: "Menu", icon: Store, end: false },
   { to: "/manager/tables", label: "Tables", icon: Table2, end: false },
+  { to: "/manager/qr", label: "Table QR", icon: QrCode, end: false },
 ];
 
 function ManagerLayout() {
