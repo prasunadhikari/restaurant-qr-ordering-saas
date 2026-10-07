@@ -7,10 +7,20 @@ import Input from "../../components/ui/Input";
 import {
   createRestaurantStaff,
   deleteRestaurantStaff,
+  getRestaurantSettings,
   getRestaurantStaff,
   updateRestaurantStaff,
   type RestaurantStaffMember,
 } from "../../services/restaurantDashboardService";
+
+const buildCafeEmail = (personName: string, cafeName: string) => {
+  const person = personName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const cafe = cafeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const localPart = person || "staff";
+  const cafeTag = cafe || "cafe";
+
+  return `${localPart}+${cafeTag}@gmail.com`;
+};
 
 function StaffManagementPage() {
   const [staff, setStaff] = useState<RestaurantStaffMember[]>([]);
@@ -18,6 +28,7 @@ function StaffManagementPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
+  const [restaurantName, setRestaurantName] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RestaurantStaffMember | null>(null);
   const [name, setName] = useState("");
@@ -26,9 +37,15 @@ function StaffManagementPage() {
 
   useEffect(() => {
     let active = true;
-    getRestaurantStaff()
-      .then((members) => {
-        if (active) setStaff(members);
+    Promise.all([
+      getRestaurantStaff(),
+      getRestaurantSettings(),
+    ])
+      .then(([members, settings]) => {
+        if (active) {
+          setStaff(members);
+          setRestaurantName(settings.name);
+        }
       })
       .catch((cause: unknown) => {
         console.error("Failed to load restaurant staff:", cause);
@@ -43,6 +60,19 @@ function StaffManagementPage() {
       active = false;
     };
   }, []);
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (!value.trim() || !restaurantName.trim()) {
+      return;
+    }
+    setEmail((currentEmail) => {
+      if (!currentEmail || currentEmail === buildCafeEmail(value, restaurantName)) {
+        return buildCafeEmail(value, restaurantName);
+      }
+      return currentEmail;
+    });
+  };
 
   const resetForm = () => {
     setFormOpen(false);
@@ -169,7 +199,7 @@ function StaffManagementPage() {
               required
               autoComplete="name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => handleNameChange(event.target.value)}
             />
             <Input
               id="staff-email"

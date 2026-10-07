@@ -7,17 +7,32 @@ import {
   createRestaurantManager,
   deleteRestaurantManager,
   getRestaurantManagers,
+  getRestaurantSettings,
   type RestaurantManagerMember,
 } from "../../services/restaurantDashboardService";
+
+const buildCafeEmail = (personName: string, cafeName: string) => {
+  const person = personName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const cafe = cafeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const localPart = person || "manager";
+  const cafeTag = cafe || "cafe";
+
+  return `${localPart}+${cafeTag}@gmail.com`;
+};
 
 function ManagerManagementPage() {
   const [managers, setManagers] = useState<RestaurantManagerMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [restaurantName, setRestaurantName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    getRestaurantSettings().then((settings) => setRestaurantName(settings.name)).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -28,6 +43,19 @@ function ManagerManagementPage() {
       }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (!value.trim() || !restaurantName.trim()) {
+      return;
+    }
+    setEmail((currentEmail) => {
+      if (!currentEmail || currentEmail === buildCafeEmail(value, restaurantName)) {
+        return buildCafeEmail(value, restaurantName);
+      }
+      return currentEmail;
+    });
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,7 +95,7 @@ function ManagerManagementPage() {
         <h2 className="font-semibold">Create manager account</h2>
         <p className="mt-1 text-sm text-slate-500">Share these sign-in details directly with your manager. Manager sign-in is at /manager/login.</p>
         <form onSubmit={submit} className="mt-5 grid gap-4 sm:grid-cols-2">
-          <Input id="manager-account-name" label="Full name" required autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
+          <Input id="manager-account-name" label="Full name" required autoComplete="name" value={name} onChange={(event) => handleNameChange(event.target.value)} />
           <Input id="manager-account-email" label="Email address" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           <Input id="manager-account-password" label="Temporary password" type="password" required minLength={6} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
           <div className="self-end"><Button type="submit" disabled={saving}><Plus size={16} />{saving ? "Creating…" : "Create manager"}</Button></div>

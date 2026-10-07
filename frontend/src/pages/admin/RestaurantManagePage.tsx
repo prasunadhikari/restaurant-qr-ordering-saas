@@ -66,6 +66,15 @@ interface EditOwnerForm {
   confirmPassword: string;
 }
 
+const buildCafeEmail = (personName: string, cafeName: string) => {
+  const person = personName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const cafe = cafeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const localPart = person || "owner";
+  const cafeTag = cafe || "cafe";
+
+  return `${localPart}+${cafeTag}@gmail.com`;
+};
+
 function RestaurantManagePage() {
   const { id } = useParams<{ id: string }>();
 
@@ -269,6 +278,25 @@ function RestaurantManagePage() {
           ? generateSlug(value)
           : current.slug,
     }));
+  };
+
+  const handleOwnerNameChange = (value: string) => {
+    setOwnerForm((current) => {
+      const nextOwner = {
+        ...current,
+        name: value,
+      };
+
+      if (!value.trim() || !restaurant?.name) {
+        return nextOwner;
+      }
+
+      if (!current.email || current.email === buildCafeEmail(value, restaurant.name)) {
+        nextOwner.email = buildCafeEmail(value, restaurant.name);
+      }
+
+      return nextOwner;
+    });
   };
 
   const handleSaveRestaurant = async (
@@ -1536,10 +1564,7 @@ function RestaurantManagePage() {
                       required
                       value={ownerForm.name}
                       onChange={(event) =>
-                        setOwnerForm({
-                          ...ownerForm,
-                          name: event.target.value,
-                        })
+                        handleOwnerNameChange(event.target.value)
                       }
                       placeholder="e.g. Ram Sharma"
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
