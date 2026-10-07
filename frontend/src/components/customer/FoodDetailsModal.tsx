@@ -47,11 +47,20 @@ function FoodDetailsModal({
     >
       <div className="space-y-5">
         <div className="overflow-hidden rounded-2xl bg-slate-100">
-          <img
-            src={item.image}
-            alt={item.name}
-            className="h-56 w-full object-cover sm:h-72"
-          />
+          {item.image ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="h-56 w-full object-cover sm:h-72"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="flex h-56 items-center justify-center text-sm text-slate-500 sm:h-72">
+              Dish photo coming soon
+            </div>
+          )}
         </div>
 
         <div>

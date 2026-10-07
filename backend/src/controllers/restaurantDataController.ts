@@ -35,6 +35,16 @@ const getOwnerRequest = (
 const isValidId = (id: string): boolean =>
   mongoose.Types.ObjectId.isValid(id);
 
+const isValidImageUrl = (value: unknown): value is string => {
+  if (typeof value !== "string" || value.trim().length > 2048) return false;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
 const handleError = (
   error: unknown,
   res: Response,
@@ -210,10 +220,17 @@ export const createMenuItem = async (
     typeof req.body.name === "string" ? req.body.name.trim() : "";
   const price = Number(req.body.price);
   const categoryId = String(req.body.categoryId || "");
-  if (!name || !Number.isFinite(price) || price < 0 || !isValidId(categoryId)) {
+  if (
+    !name ||
+    !Number.isFinite(price) ||
+    price < 0 ||
+    !isValidId(categoryId) ||
+    !isValidImageUrl(req.body.image)
+  ) {
     res.status(400).json({
       success: false,
-      message: "Name, a valid category, and a non-negative price are required",
+      message:
+        "Name, a valid category, a non-negative price, and an HTTP(S) dish photo URL are required",
     });
     return;
   }
@@ -236,8 +253,7 @@ export const createMenuItem = async (
         typeof req.body.description === "string"
           ? req.body.description.trim()
           : "",
-      image:
-        typeof req.body.image === "string" ? req.body.image.trim() : "",
+      image: req.body.image.trim(),
       available: req.body.available !== false,
     });
     await item.populate("categoryId", "name");
@@ -267,27 +283,35 @@ export const addCatalogMenuItems = async (
     return;
   }
 
-  const items: Array<{ name: string; category: string; price: number }> = [];
+  const items: Array<{
+    name: string;
+    category: string;
+    price: number;
+    image: string;
+  }> = [];
   for (const item of requested) {
     const name = typeof item?.name === "string" ? item.name.trim() : "";
     const category =
       typeof item?.category === "string" ? item.category.trim() : "";
     const price = Number(item?.price);
+    const image = item?.image;
     if (
       !name ||
       name.length > 100 ||
       !category ||
       category.length > 60 ||
       !Number.isFinite(price) ||
-      price < 0
+      price < 0 ||
+      !isValidImageUrl(image)
     ) {
       res.status(400).json({
         success: false,
-        message: "Each dish needs a name, category, and valid non-negative price",
+        message:
+          "Each dish needs a name, category, non-negative price, and HTTP(S) photo URL",
       });
       return;
     }
-    items.push({ name, category, price });
+    items.push({ name, category, price, image: image.trim() });
   }
 
   const uniqueNames = new Set<string>();
@@ -337,6 +361,7 @@ export const addCatalogMenuItems = async (
           categoryId: categories.get(item.category.toLocaleLowerCase()),
           name: item.name,
           price: item.price,
+          image: item.image,
           available: true,
         })),
       );
@@ -386,6 +411,16 @@ export const updateMenuItem = async (
   }
   for (const field of ["description", "image"] as const) {
     if (typeof req.body[field] === "string") {
+      if (
+        field === "image" &&
+        !isValidImageUrl(req.body[field])
+      ) {
+        res.status(400).json({
+          success: false,
+          message: "Dish photo must be a valid HTTP(S) URL",
+        });
+        return;
+      }
       updates[field] = req.body[field].trim();
     }
   }

@@ -100,11 +100,16 @@ function CheckoutModal({
                 key={cartItem.lineId}
                 className="flex gap-3 p-3"
               >
-                <img
-                  src={cartItem.item.image}
-                  alt={cartItem.item.name}
-                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                />
+                {cartItem.item.image && (
+                  <img
+                    src={cartItem.item.image}
+                    alt={cartItem.item.name}
+                    className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
