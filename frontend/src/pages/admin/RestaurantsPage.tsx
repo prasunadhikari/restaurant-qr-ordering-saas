@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Building2,
@@ -40,8 +40,6 @@ type Restaurant = {
   phone: string;
   plan: RestaurantPlan;
   status: RestaurantStatus;
-  tables: number | null;
-  orders: number | null;
   joined: string;
 };
 
@@ -54,10 +52,6 @@ type CreateRestaurantForm = {
   opening: string;
   closing: string;
 };
-
-function formatNumber(value: number) {
-  return value.toLocaleString("en-IN");
-}
 
 function createSlug(value: string) {
   return value
@@ -89,8 +83,6 @@ function mapRestaurant(restaurant: ApiRestaurant): Restaurant {
         : restaurant.status === "pending"
           ? "Pending"
           : "Suspended",
-    tables: null,
-    orders: null,
     joined: new Date(restaurant.createdAt).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -133,7 +125,7 @@ function RestaurantsPage() {
     closing: "22:00",
   });
 
-  const loadRestaurants = async (isRefresh = false) => {
+  const loadRestaurants = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -158,11 +150,12 @@ function RestaurantsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void loadRestaurants();
-  }, []);
+    const initialLoad = window.setTimeout(() => void loadRestaurants(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [loadRestaurants]);
 
   const filteredRestaurants = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -504,7 +497,7 @@ function RestaurantsPage() {
           <>
             {/* Desktop */}
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[1050px]">
+              <table className="w-full min-w-[850px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/70">
                     <th className="px-5 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -517,14 +510,6 @@ function RestaurantsPage() {
 
                     <th className="px-5 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       Plan
-                    </th>
-
-                    <th className="px-5 py-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Tables
-                    </th>
-
-                    <th className="px-5 py-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Orders
                     </th>
 
                     <th className="px-5 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -594,18 +579,6 @@ function RestaurantsPage() {
                         </Badge>
                       </td>
 
-                      <td className="px-5 py-4 text-center text-sm font-semibold text-slate-700">
-                        {restaurant.tables === null
-                          ? "—"
-                          : restaurant.tables}
-                      </td>
-
-                      <td className="px-5 py-4 text-center text-sm font-semibold text-slate-700">
-                        {restaurant.orders === null
-                          ? "—"
-                          : formatNumber(restaurant.orders)}
-                      </td>
-
                       <td className="px-5 py-4">
                         <Badge variant={statusVariant(restaurant.status)}>
                           {restaurant.status}
@@ -664,7 +637,7 @@ function RestaurantsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="mt-4 grid grid-cols-1 gap-2">
                     <div className="rounded-xl bg-slate-50 p-3">
                       <p className="text-[11px] text-slate-400">Plan</p>
 
@@ -673,25 +646,6 @@ function RestaurantsPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-[11px] text-slate-400">Tables</p>
-
-                      <p className="mt-1 text-xs font-bold text-slate-700">
-                        {restaurant.tables === null
-                          ? "—"
-                          : restaurant.tables}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-[11px] text-slate-400">Orders</p>
-
-                      <p className="mt-1 text-xs font-bold text-slate-700">
-                        {restaurant.orders === null
-                          ? "—"
-                          : formatNumber(restaurant.orders)}
-                      </p>
-                    </div>
                   </div>
 
                   <Button

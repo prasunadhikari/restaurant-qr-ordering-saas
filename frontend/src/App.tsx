@@ -33,6 +33,8 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import RestaurantsPage from "./pages/admin/RestaurantsPage";
 import RestaurantManagePage from "./pages/admin/RestaurantManagePage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 
 function App() {
   return (
@@ -135,6 +137,9 @@ function App() {
               path="/admin/restaurants/:id"
               element={<RestaurantManagePage />}
             />
+
+            <Route path="/admin/orders" element={<AdminOrdersPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
 
             <Route
               path="/admin/settings"

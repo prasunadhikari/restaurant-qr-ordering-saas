@@ -3,7 +3,8 @@ import { CheckCircle2, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-reac
 import { useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
-import { apiRequest } from "../../services/api";
+import { changeAdminPassword } from "../../services/adminService";
+import { clearPortalSessions } from "../../services/authSession";
 
 function AdminSettingsPage() {
   const navigate = useNavigate();
@@ -46,16 +47,7 @@ function AdminSettingsPage() {
     try {
       setSaving(true);
 
-      await apiRequest("/users/admin/password", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
-      });
+      await changeAdminPassword(currentPassword, newPassword);
 
       setSuccess(
         "Password changed successfully. Please sign in again with your new password.",
@@ -66,7 +58,7 @@ function AdminSettingsPage() {
       setConfirmPassword("");
 
       setTimeout(() => {
-        localStorage.removeItem("adminToken");
+        clearPortalSessions();
         navigate("/admin/login", { replace: true });
       }, 1800);
     } catch (err) {
@@ -118,6 +110,7 @@ function AdminSettingsPage() {
 
             <form onSubmit={handleChangePassword} className="space-y-5">
               <PasswordField
+                id="admin-current-password"
                 label="Current password"
                 value={currentPassword}
                 onChange={setCurrentPassword}
@@ -127,6 +120,7 @@ function AdminSettingsPage() {
               />
 
               <PasswordField
+                id="admin-new-password"
                 label="New password"
                 value={newPassword}
                 onChange={setNewPassword}
@@ -136,6 +130,7 @@ function AdminSettingsPage() {
               />
 
               <PasswordField
+                id="admin-confirm-password"
                 label="Confirm new password"
                 value={confirmPassword}
                 onChange={setConfirmPassword}
@@ -145,7 +140,7 @@ function AdminSettingsPage() {
               />
 
               {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -198,6 +193,7 @@ function AdminSettingsPage() {
 }
 
 interface PasswordFieldProps {
+  id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -207,6 +203,7 @@ interface PasswordFieldProps {
 }
 
 function PasswordField({
+  id,
   label,
   value,
   onChange,
@@ -216,14 +213,17 @@ function PasswordField({
 }: PasswordFieldProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-slate-700">
         {label}
       </label>
 
       <div className="relative">
         <input
+          id={id}
           type={visible ? "text" : "password"}
           value={value}
+          required
+          minLength={label === "New password" ? 6 : undefined}
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"

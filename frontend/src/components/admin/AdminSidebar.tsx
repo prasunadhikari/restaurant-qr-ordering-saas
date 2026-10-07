@@ -1,13 +1,11 @@
 import {
-  BarChart3,
-  ChevronRight,
   LayoutDashboard,
+  LogOut,
   PanelLeft,
   Settings,
   ShoppingBag,
   Store,
   Users,
-  WalletCards,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -17,6 +15,8 @@ interface AdminSidebarProps {
   mobileOpen: boolean;
   onToggleCollapse: () => void;
   onCloseMobile: () => void;
+  onLogout: () => void;
+  adminName: string;
 }
 
 type NavigationItem = {
@@ -35,6 +35,8 @@ function AdminSidebar({
   mobileOpen,
   onToggleCollapse,
   onCloseMobile,
+  onLogout,
+  adminName,
 }: AdminSidebarProps) {
   const navigation: NavigationGroup[] = [
     {
@@ -64,31 +66,6 @@ function AdminSidebar({
           label: "Orders",
           path: "/admin/orders",
           icon: ShoppingBag,
-        },
-      ],
-    },
-    {
-      label: "Billing",
-      items: [
-        {
-          label: "Subscriptions",
-          path: "/admin/subscriptions",
-          icon: WalletCards,
-        },
-        {
-          label: "Payments",
-          path: "/admin/payments",
-          icon: WalletCards,
-        },
-      ],
-    },
-    {
-      label: "Insights",
-      items: [
-        {
-          label: "Analytics",
-          path: "/admin/analytics",
-          icon: BarChart3,
         },
       ],
     },
@@ -285,7 +262,7 @@ function AdminSidebar({
                 <>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-bold text-slate-800">
-                      Platform Admin
+                      {adminName}
                     </p>
 
                     <p className="mt-0.5 truncate text-[10px] text-slate-500">
@@ -293,13 +270,29 @@ function AdminSidebar({
                     </p>
                   </div>
 
-                  <ChevronRight
-                    size={14}
-                    className="text-slate-400"
-                  />
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                    aria-label="Sign out"
+                    title="Sign out"
+                  >
+                    <LogOut size={16} />
+                  </button>
                 </>
               )}
             </div>
+            {collapsed && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="mt-2 flex h-9 w-full items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
+            )}
           </div>
         </div>
       </aside>

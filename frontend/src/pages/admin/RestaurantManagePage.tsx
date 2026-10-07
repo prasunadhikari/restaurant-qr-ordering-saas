@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -121,7 +121,7 @@ function RestaurantManagePage() {
       status: "active",
     });
 
-  const loadRestaurant = async () => {
+  const loadRestaurant = useCallback(async () => {
     if (!id) {
       setError("Restaurant ID is missing");
       setLoading(false);
@@ -157,7 +157,7 @@ function RestaurantManagePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   const loadOwners = async () => {
     try {
@@ -193,8 +193,9 @@ function RestaurantManagePage() {
   };
 
   useEffect(() => {
-    loadRestaurant();
-  }, [id]);
+    const initialLoad = window.setTimeout(() => void loadRestaurant(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [loadRestaurant]);
 
   const openOwnerModal = async () => {
     setSuccess("");
@@ -473,7 +474,7 @@ function RestaurantManagePage() {
         throw new Error("Admin authentication required");
       }
 
-      await apiRequest(`/users/admin/restaurants/${id}/owner`, {
+      await apiRequest("/users/restaurant-owners", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -482,6 +483,7 @@ function RestaurantManagePage() {
           name: ownerForm.name.trim(),
           email: ownerForm.email.trim(),
           password: ownerForm.password,
+          restaurantId: id,
         }),
       });
 

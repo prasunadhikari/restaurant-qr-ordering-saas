@@ -365,3 +365,78 @@ export const updateRestaurantOwner = async (
     });
   }
 };
+
+export const changeAdminPassword = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    if (req.user?.role !== "platform_admin" || !req.user.id) {
+      res.status(403).json({
+        success: false,
+        message: "Platform admin access required",
+      });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    if (
+      typeof currentPassword !== "string" ||
+      typeof newPassword !== "string" ||
+      !currentPassword ||
+      !newPassword
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Current and new passwords are required",
+      });
+      return;
+    }
+    if (newPassword.length < 6) {
+      res.status(400).json({
+        success: false,
+        message: "New password must be at least 6 characters",
+      });
+      return;
+    }
+    if (currentPassword === newPassword) {
+      res.status(400).json({
+        success: false,
+        message: "Choose a new password different from the current one",
+      });
+      return;
+    }
+
+    const admin = await User.findOne({
+      _id: req.user.id,
+      role: "platform_admin",
+    });
+    if (!admin) {
+      res.status(404).json({
+        success: false,
+        message: "Platform admin account not found",
+      });
+      return;
+    }
+    if (!(await bcrypt.compare(currentPassword, admin.password))) {
+      res.status(400).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+      return;
+    }
+
+    admin.password = await bcrypt.hash(newPassword, 12);
+    await admin.save();
+    res.json({
+      success: true,
+      message: "Admin password changed successfully",
+    });
+  } catch (error) {
+    console.error("Change admin password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to change admin password",
+    });
+  }
+};

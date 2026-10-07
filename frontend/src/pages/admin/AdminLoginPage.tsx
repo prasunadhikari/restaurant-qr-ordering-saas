@@ -26,7 +26,7 @@ function AdminLoginPage() {
 
   const existingToken = localStorage.getItem("adminToken");
 
-  const [email, setEmail] = useState("admin@restaurantos.local");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -102,7 +102,7 @@ function AdminLoginPage() {
             </div>
 
             <h1 className="mt-5 text-2xl font-bold tracking-tight text-white">
-              RestaurantOS
+              Aagan
             </h1>
 
             <p className="mt-1 text-sm text-slate-400">
@@ -219,7 +219,7 @@ function AdminLoginPage() {
           </div>
 
           <p className="mt-6 text-center text-xs text-slate-500">
-            Restaurant QR Ordering SaaS
+            Aagan · Restaurant platform
           </p>
         </div>
       </div>

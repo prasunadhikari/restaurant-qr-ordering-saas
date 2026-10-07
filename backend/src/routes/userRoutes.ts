@@ -5,6 +5,7 @@ import {
   getRestaurantOwners,
   createRestaurantOwner,
   updateRestaurantOwner,
+  changeAdminPassword,
 } from "../controllers/userController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -39,6 +40,13 @@ router.put(
   authMiddleware,
   adminMiddleware,
   updateRestaurantOwner,
+);
+
+router.put(
+  "/admin/password",
+  authMiddleware,
+  adminMiddleware,
+  changeAdminPassword,
 );
 
 export default router;
