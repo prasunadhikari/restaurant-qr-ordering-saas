@@ -7,6 +7,7 @@ import MenuItem from "../models/MenuItem.js";
 import Order from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
+import { getDefaultMenuImage } from "../utils/menuImages.js";
 
 const handleError = (error: unknown, res: Response, message: string): void => {
   console.error(message, error);
@@ -80,7 +81,9 @@ export const getPublicRestaurantMenu = async (
         sortOrder: 1,
         name: 1,
       }),
-      MenuItem.find({ restaurantId: restaurant._id }).sort({ createdAt: -1 }),
+      MenuItem.find({ restaurantId: restaurant._id })
+        .populate("categoryId", "name")
+        .sort({ createdAt: -1 }),
     ]);
 
     res.json({
@@ -102,7 +105,17 @@ export const getPublicRestaurantMenu = async (
           tableNumber: table.tableNumber,
         },
         categories,
-        items,
+        items: items.map((item) => {
+          const categoryName =
+            typeof item.categoryId === "object" &&
+            "name" in item.categoryId
+              ? String(item.categoryId.name)
+              : "";
+          return {
+            ...item.toObject(),
+            image: item.image || getDefaultMenuImage(item.name, categoryName),
+          };
+        }),
       },
     });
   } catch (error) {

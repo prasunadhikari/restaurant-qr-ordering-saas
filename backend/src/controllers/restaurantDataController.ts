@@ -6,6 +6,7 @@ import MenuItem from "../models/MenuItem.js";
 import Order, { OrderStatus } from "../models/Order.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { getDefaultMenuImage } from "../utils/menuImages.js";
 
 type OwnerRequest = AuthenticatedRequest & {
   restaurantId: string;
@@ -204,7 +205,22 @@ export const getMenuItems = async (
     })
       .populate("categoryId", "name")
       .sort({ createdAt: -1 });
-    res.json({ success: true, data: { items } });
+    res.json({
+      success: true,
+      data: {
+        items: items.map((item) => {
+          const categoryName =
+            typeof item.categoryId === "object" &&
+            "name" in item.categoryId
+              ? String(item.categoryId.name)
+              : "";
+          return {
+            ...item.toObject(),
+            image: item.image || getDefaultMenuImage(item.name, categoryName),
+          };
+        }),
+      },
+    });
   } catch (error) {
     handleError(error, res, "Failed to load menu items");
   }
@@ -225,18 +241,20 @@ export const createMenuItem = async (
     !Number.isFinite(price) ||
     price < 0 ||
     !isValidId(categoryId) ||
-    !isValidImageUrl(req.body.image)
+    (req.body.image !== undefined &&
+      req.body.image !== "" &&
+      !isValidImageUrl(req.body.image))
   ) {
     res.status(400).json({
       success: false,
       message:
-        "Name, a valid category, a non-negative price, and an HTTP(S) dish photo URL are required",
+        "Name, a valid category, and a non-negative price are required; dish photo must be a valid HTTP(S) URL",
     });
     return;
   }
 
   try {
-    const category = await MenuCategory.exists({
+    const category = await MenuCategory.findOne({
       _id: categoryId,
       restaurantId: owner.restaurantId,
     });
@@ -253,7 +271,9 @@ export const createMenuItem = async (
         typeof req.body.description === "string"
           ? req.body.description.trim()
           : "",
-      image: req.body.image.trim(),
+      image: isValidImageUrl(req.body.image)
+        ? req.body.image.trim()
+        : getDefaultMenuImage(name, category.name),
       available: req.body.available !== false,
     });
     await item.populate("categoryId", "name");
@@ -287,7 +307,7 @@ export const addCatalogMenuItems = async (
     name: string;
     category: string;
     price: number;
-    image: string;
+    image?: string;
   }> = [];
   for (const item of requested) {
     const name = typeof item?.name === "string" ? item.name.trim() : "";
@@ -302,16 +322,21 @@ export const addCatalogMenuItems = async (
       category.length > 60 ||
       !Number.isFinite(price) ||
       price < 0 ||
-      !isValidImageUrl(image)
+      (image !== undefined && image !== "" && !isValidImageUrl(image))
     ) {
       res.status(400).json({
         success: false,
         message:
-          "Each dish needs a name, category, non-negative price, and HTTP(S) photo URL",
+          "Each dish needs a name, category, and non-negative price; photo URLs must use HTTP(S)",
       });
       return;
     }
-    items.push({ name, category, price, image: image.trim() });
+    items.push({
+      name,
+      category,
+      price,
+      image: isValidImageUrl(image) ? image.trim() : undefined,
+    });
   }
 
   const uniqueNames = new Set<string>();
@@ -361,7 +386,7 @@ export const addCatalogMenuItems = async (
           categoryId: categories.get(item.category.toLocaleLowerCase()),
           name: item.name,
           price: item.price,
-          image: item.image,
+          image: item.image || getDefaultMenuImage(item.name, item.category),
           available: true,
         })),
       );
@@ -409,25 +434,32 @@ export const updateMenuItem = async (
     }
     updates.price = price;
   }
-  for (const field of ["description", "image"] as const) {
-    if (typeof req.body[field] === "string") {
-      if (
-        field === "image" &&
-        !isValidImageUrl(req.body[field])
-      ) {
-        res.status(400).json({
-          success: false,
-          message: "Dish photo must be a valid HTTP(S) URL",
-        });
-        return;
-      }
-      updates[field] = req.body[field].trim();
+  if (typeof req.body.description === "string") {
+    updates.description = req.body.description.trim();
+  }
+  if (typeof req.body.image === "string" && req.body.image.trim()) {
+    if (!isValidImageUrl(req.body.image)) {
+      res.status(400).json({
+        success: false,
+        message: "Dish photo must be a valid HTTP(S) URL",
+      });
+      return;
     }
+    updates.image = req.body.image.trim();
   }
   if (typeof req.body.available === "boolean") {
     updates.available = req.body.available;
   }
   try {
+    const existingItem = await MenuItem.findOne({
+      _id: id,
+      restaurantId: owner.restaurantId,
+    });
+    if (!existingItem) {
+      res.status(404).json({ success: false, message: "Menu item not found" });
+      return;
+    }
+
     if (req.body.categoryId !== undefined) {
       const categoryId = String(req.body.categoryId);
       if (
@@ -443,6 +475,23 @@ export const updateMenuItem = async (
       updates.categoryId = categoryId;
     }
 
+    if (req.body.image === "") {
+      const categoryId =
+        typeof updates.categoryId === "string"
+          ? updates.categoryId
+          : existingItem.categoryId.toString();
+      const category = await MenuCategory.findOne({
+        _id: categoryId,
+        restaurantId: owner.restaurantId,
+      });
+      updates.image = getDefaultMenuImage(
+        typeof updates.name === "string"
+          ? updates.name
+          : existingItem.name,
+        category?.name,
+      );
+    }
+
     const item = await MenuItem.findOneAndUpdate(
       { _id: id, restaurantId: owner.restaurantId },
       updates,
@@ -452,7 +501,19 @@ export const updateMenuItem = async (
       res.status(404).json({ success: false, message: "Menu item not found" });
       return;
     }
-    res.json({ success: true, data: { item } });
+    const categoryName =
+      typeof item.categoryId === "object" && "name" in item.categoryId
+        ? String(item.categoryId.name)
+        : "";
+    res.json({
+      success: true,
+      data: {
+        item: {
+          ...item.toObject(),
+          image: item.image || getDefaultMenuImage(item.name, categoryName),
+        },
+      },
+    });
   } catch (error) {
     handleError(error, res, "Failed to update menu item");
   }

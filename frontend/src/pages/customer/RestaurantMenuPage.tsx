@@ -128,7 +128,7 @@ function RestaurantMenuPage() {
         categoryId:
           typeof item.categoryId === "string"
             ? item.categoryId
-            : String(item.categoryId),
+            : item.categoryId._id,
         name: item.name,
         description: item.description,
         price: item.price,

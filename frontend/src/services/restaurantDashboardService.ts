@@ -152,7 +152,7 @@ export const createMenuItem = async (
   (await authorized<{ item: MenuItem }>("/restaurant/menu", json(value))).item;
 
 export const addCatalogMenuItems = async (
-  items: Array<{ name: string; category: string; price: number; image: string }>,
+  items: Array<{ name: string; category: string; price: number }>,
 ): Promise<{ added: number; skipped: number }> =>
   authorized<{ added: number; skipped: number }>("/restaurant/menu/catalog", json({ items }));
 

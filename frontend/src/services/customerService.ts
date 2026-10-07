@@ -21,7 +21,7 @@ export interface PublicMenuCategory {
 
 export interface PublicMenuItem {
   _id: string;
-  categoryId: string;
+  categoryId: string | { _id: string; name: string };
   name: string;
   description: string;
   price: number;

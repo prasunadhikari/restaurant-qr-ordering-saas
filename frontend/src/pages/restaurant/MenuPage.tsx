@@ -45,7 +45,6 @@ function MenuPage() {
   const [catalogCategory, setCatalogCategory] = useState("All dishes");
   const [selectedCatalog, setSelectedCatalog] = useState<Record<string, boolean>>({});
   const [catalogPrices, setCatalogPrices] = useState<Record<string, string>>({});
-  const [catalogImages, setCatalogImages] = useState<Record<string, string>>({});
   const [catalogNotice, setCatalogNotice] = useState("");
 
   const load = async () => {
@@ -249,14 +248,6 @@ function MenuPage() {
       setError(`Enter a price for ${missingPrice.name} before adding selected dishes.`);
       return;
     }
-    const missingImage = selectedCatalogDishes.find(
-      (dish) => !catalogImages[dish.name]?.trim(),
-    );
-    if (missingImage) {
-      setError(`Add a real dish photo URL for ${missingImage.name} before adding selected dishes.`);
-      return;
-    }
-
     setSaving(true);
     setError("");
     setCatalogNotice("");
@@ -265,12 +256,10 @@ function MenuPage() {
         selectedCatalogDishes.map((dish) => ({
           ...dish,
           price: Number(catalogPrices[dish.name]),
-          image: catalogImages[dish.name].trim(),
         })),
       );
       setSelectedCatalog({});
       setCatalogPrices({});
-      setCatalogImages({});
       await load();
       setCatalogNotice(
         `${result.added} dish${result.added === 1 ? "" : "es"} added to your menu` +
@@ -302,7 +291,7 @@ function MenuPage() {
         <Card><p className="text-xs font-bold uppercase text-slate-400">Total items</p><p className="mt-2 text-3xl font-black">{items.length}</p></Card>
         <Card><p className="text-xs font-bold uppercase text-slate-400">Available</p><p className="mt-2 text-3xl font-black text-emerald-600">{items.filter((item) => item.available).length}</p></Card>
         <Card><p className="text-xs font-bold uppercase text-slate-400">Categories</p><p className="mt-2 text-3xl font-black">{categories.length}</p></Card>
-        <Card><p className="text-xs font-bold uppercase text-slate-400">Photos needed</p><p className={`mt-2 text-3xl font-black ${items.some((item) => !item.image) ? "text-amber-600" : "text-emerald-600"}`}>{items.filter((item) => !item.image).length}</p></Card>
+        <Card><p className="text-xs font-bold uppercase text-slate-400">Images assigned</p><p className="mt-2 text-3xl font-black text-emerald-600">{items.filter((item) => Boolean(item.image)).length}</p></Card>
       </div>
 
       <Card>
@@ -391,32 +380,9 @@ function MenuPage() {
                               className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-7 pr-2 text-sm"
                             />
                           </span>
-                          <input
-                            aria-label={`Photo URL for ${dish.name}`}
-                            type="url"
-                            required
-                            value={catalogImages[dish.name] || ""}
-                            onChange={(event) => setCatalogImages((current) => ({
-                              ...current,
-                              [dish.name]: event.target.value,
-                            }))}
-                            onClick={(event) => event.stopPropagation()}
-                            placeholder="Paste a real photo URL"
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                          />
-                          {catalogImages[dish.name] && (
-                            <img
-                              src={catalogImages[dish.name]}
-                              alt={`Preview of ${dish.name}`}
-                              className="h-20 w-full rounded-lg object-cover"
-                              onError={(event) => {
-                                event.currentTarget.style.visibility = "hidden";
-                              }}
-                              onLoad={(event) => {
-                                event.currentTarget.style.visibility = "visible";
-                              }}
-                            />
-                          )}
+                          <span className="block text-[11px] text-slate-500">
+                            A matching food photo is assigned automatically.
+                          </span>
                         </span>
                       )}
                     </span>
@@ -428,7 +394,7 @@ function MenuPage() {
             </div>
 
             <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">Add each dish's real photo and price. You can update them later.</p>
+              <p className="text-xs text-slate-500">A matching food photo is assigned automatically. You can replace it any time.</p>
               <Button type="button" disabled={saving || selectedCatalogDishes.length === 0} onClick={() => void addSelectedCatalogDishes()}>
                 <Plus size={16} /> {saving ? "Adding dishes…" : `Add ${selectedCatalogDishes.length || ""} selected dish${selectedCatalogDishes.length === 1 ? "" : "es"}`}
               </Button>
@@ -472,16 +438,15 @@ function MenuPage() {
           <div className="md:col-span-2">
             <Input
               id="item-image"
-              label="Dish photo URL"
+              label="Dish photo URL (optional)"
               type="url"
-              required
               value={image}
               onChange={(event) => setImage(event.target.value)}
               placeholder="https://…"
               aria-describedby="item-image-help"
             />
             <p id="item-image-help" className="mt-1.5 text-xs text-slate-500">
-              Use a clear photo of this exact dish, not a restaurant logo or a different menu item.
+              Leave blank to assign a matching food photo automatically. You can replace it with a photo of your own dish.
             </p>
             {image && (
               <img
@@ -530,11 +495,7 @@ function MenuPage() {
                         event.currentTarget.style.visibility = "hidden";
                       }}
                     />
-                  ) : (
-                    <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-lg bg-amber-50 px-2 text-center text-[10px] font-medium text-amber-800">
-                      Photo needed
-                    </div>
-                  )}
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2"><p className="font-bold text-slate-900">{item.name}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">{category?.name || "Uncategorized"}</span></div>
                     {item.description && <p className="mt-1 text-sm text-slate-500">{item.description}</p>}
