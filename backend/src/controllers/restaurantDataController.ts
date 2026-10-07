@@ -9,6 +9,7 @@ import Order, { OrderStatus } from "../models/Order.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
+import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 
 type OwnerRequest = AuthenticatedRequest & {
   restaurantId: string;
@@ -686,6 +687,25 @@ export const updateTable = async (
       res.status(400).json({ success: false, message: "Invalid table status" });
       return;
     }
+    if (req.body.status === "available") {
+      try {
+        const hasUnservedOrder = await Order.exists({
+          tableId: id,
+          restaurantId: owner.restaurantId,
+          status: { $nin: ["served", "Served"] },
+        });
+        if (hasUnservedOrder) {
+          res.status(409).json({
+            success: false,
+            message: "This table cannot be freed until all its orders are served",
+          });
+          return;
+        }
+      } catch (error) {
+        handleError(error, res, "Failed to verify table orders");
+        return;
+      }
+    }
     updates.status = req.body.status;
   }
 
@@ -787,11 +807,13 @@ export const updateOrderStatus = async (
       { _id: id, restaurantId: owner.restaurantId },
       { status: req.body.status },
       { new: true, runValidators: true },
-    ).populate("tableId", "tableNumber");
+    );
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
     }
+    await syncTableOccupancy(order.tableId, owner.restaurantId);
+    await order.populate("tableId", "tableNumber");
     res.json({ success: true, data: { order } });
   } catch (error) {
     handleError(error, res, "Failed to update order status");

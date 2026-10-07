@@ -5,6 +5,7 @@ import Order, { OrderStatus } from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 
 const supportedStatuses: OrderStatus[] = [
   "pending",
@@ -227,6 +228,7 @@ export const updateStaffOrderStatus = async (
 
     order.status = requestedStatus as OrderStatus;
     await order.save();
+    await syncTableOccupancy(order.tableId, order.restaurantId);
     res.json({
       success: true,
       data: { order: await orderResponse(order) },

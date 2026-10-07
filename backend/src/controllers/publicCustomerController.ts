@@ -7,6 +7,7 @@ import MenuItem from "../models/MenuItem.js";
 import Order from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
+import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
 
 const handleError = (error: unknown, res: Response, message: string): void => {
@@ -249,6 +250,7 @@ export const createCustomerOrder = async (
       specialInstructions: orderNote,
       total,
     });
+    await syncTableOccupancy(table._id, restaurant._id);
 
     res.status(201).json({
       success: true,
