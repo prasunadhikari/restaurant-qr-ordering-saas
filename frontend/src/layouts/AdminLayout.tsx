@@ -87,7 +87,7 @@ function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9]">
+    <div className="portal-shell min-h-screen">
       <AdminSidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}
@@ -105,14 +105,15 @@ function AdminLayout() {
         }`}
       >
         {/* Header */}
-        <header className="sticky top-0 z-30 h-[72px] border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+        <header className="portal-header sticky top-0 z-30 h-[72px] border-b">
           <div className="flex h-full items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 lg:hidden"
+                className="portal-control flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 lg:hidden"
                 aria-label="Open navigation"
+                aria-expanded={mobileOpen}
               >
                 <Menu size={18} strokeWidth={1.8} />
               </button>
@@ -122,14 +123,14 @@ function AdminLayout() {
                   Platform administration
                 </p>
 
-                <h1 className="truncate text-[16px] font-bold tracking-tight text-slate-950 sm:mt-0.5 sm:text-[18px]">
+                <h1 className="portal-header-title truncate text-[16px] font-bold sm:mt-0.5 sm:text-[18px]">
                   {getPageTitle()}
                 </h1>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 md:flex">
+              <div className="portal-workspace-chip hidden items-center gap-2 rounded-lg border px-3 py-2 md:flex">
                 <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
                 <span className="text-[10px] font-bold text-slate-600">
                   Admin workspace
@@ -140,10 +141,13 @@ function AdminLayout() {
                 <p className="text-xs font-semibold text-slate-800">{profile?.name || "Platform Admin"}</p>
                 <p className="text-[10px] text-slate-500">{profile?.email || "Administrator"}</p>
               </div>
+              <span className="portal-avatar hidden h-9 w-9 items-center justify-center rounded-lg text-xs font-bold text-white sm:flex">
+                {profile?.name?.slice(0, 1).toUpperCase() || "A"}
+              </span>
               <button
                 type="button"
                 onClick={logout}
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                className="portal-control inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                 aria-label="Sign out of admin"
               >
                 <LogOut size={15} />

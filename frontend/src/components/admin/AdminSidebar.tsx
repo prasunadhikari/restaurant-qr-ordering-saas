@@ -94,7 +94,7 @@ function AdminSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white text-slate-900 transition-all duration-300 ${
+        className={`portal-sidebar fixed inset-y-0 left-0 z-50 flex flex-col border-r text-slate-900 transition-all duration-300 ${
           collapsed ? "w-[76px]" : "w-64"
         } ${
           mobileOpen
@@ -104,21 +104,21 @@ function AdminSidebar({
       >
         {/* Brand */}
         <div
-          className={`flex h-[72px] shrink-0 items-center border-b border-slate-100 ${
+          className={`portal-sidebar-brand flex h-[72px] shrink-0 items-center border-b ${
             collapsed ? "justify-center px-3" : "px-5"
           }`}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white shadow-sm">
+          <div className="portal-brand-mark flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black text-white">
             A
           </div>
 
           {!collapsed && (
             <div className="ml-3 min-w-0">
-              <p className="truncate text-[14px] font-bold tracking-tight text-slate-900">
+              <p className="portal-brand-title truncate text-[14px] font-bold">
                 Aagan
               </p>
 
-              <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Platform Admin
               </p>
             </div>
@@ -157,7 +157,7 @@ function AdminSidebar({
                         onClick={onCloseMobile}
                         title={collapsed ? item.label : undefined}
                         className={({ isActive }) =>
-                          `group relative flex items-center rounded-xl transition-all duration-150 ${
+                          `portal-nav-link group relative flex items-center rounded-xl ${
                             collapsed
                               ? "justify-center px-2 py-2.5"
                               : "gap-3 px-3 py-2.5"
@@ -204,7 +204,7 @@ function AdminSidebar({
         </nav>
 
         {/* Bottom section */}
-        <div className="shrink-0 border-t border-slate-100 p-3">
+        <div className="portal-sidebar-context shrink-0 border-t p-3">
           {/* Platform status */}
           {!collapsed && (
             <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">

@@ -231,7 +231,7 @@ function RestaurantLayout() {
   const userInitials = getInitials(userName);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="portal-shell min-h-screen">
       {/* =====================================================
           MOBILE OVERLAY
       ====================================================== */}
@@ -239,7 +239,7 @@ function RestaurantLayout() {
         <button
           type="button"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm lg:hidden"
           aria-label="Close navigation"
         />
       )}
@@ -248,31 +248,31 @@ function RestaurantLayout() {
           SIDEBAR
       ====================================================== */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 lg:z-40 lg:translate-x-0 ${
+        className={`portal-sidebar fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r transition-transform duration-300 lg:z-40 lg:translate-x-0 ${
           mobileOpen
             ? "translate-x-0"
             : "-translate-x-full"
         }`}
       >
         {/* Brand */}
-        <div className="flex h-16 items-center border-b border-slate-200 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white shadow-sm">
-            R
+        <div className="portal-sidebar-brand flex h-[72px] items-center border-b px-5">
+          <div className="portal-brand-mark flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black text-white">
+            A
           </div>
 
           <div className="ml-3 min-w-0">
-            <p className="truncate text-sm font-black text-slate-900">
-              Restaurant SaaS
+            <p className="portal-brand-title truncate text-sm font-black">
+              Aagan
             </p>
 
-            <p className="text-[10px] font-medium text-slate-400">
-              Management Portal
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500">
+              Owner Portal
             </p>
           </div>
         </div>
 
         {/* Restaurant */}
-        <div className="border-b border-slate-100 p-4">
+        <div className="portal-sidebar-context border-b p-4">
           {loading ? (
             <div className="animate-pulse rounded-xl bg-slate-50 p-3">
               <div className="h-4 w-32 rounded bg-slate-200" />
@@ -365,7 +365,7 @@ function RestaurantLayout() {
                 end={item.path === "/dashboard"}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                  `portal-nav-link group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold ${
                     isActive
                       ? "bg-emerald-50 text-emerald-700"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -396,7 +396,7 @@ function RestaurantLayout() {
         </nav>
 
         {/* User */}
-        <div className="border-t border-slate-200 p-4">
+        <div className="portal-sidebar-context border-t p-4">
           {loading ? (
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 animate-pulse rounded-full bg-slate-200" />
@@ -444,13 +444,14 @@ function RestaurantLayout() {
       ====================================================== */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-xl sm:px-6">
+        <header className="portal-header sticky top-0 z-30 flex h-[72px] items-center justify-between border-b px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 lg:hidden"
+              className="portal-control flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 lg:hidden"
               aria-label="Open navigation"
+              aria-expanded={mobileOpen}
             >
               <Menu
                 size={18}
@@ -463,7 +464,7 @@ function RestaurantLayout() {
                 Restaurant dashboard
               </p>
 
-              <h1 className="truncate text-base font-black text-slate-950 sm:text-lg">
+              <h1 className="portal-header-title truncate text-base font-black sm:text-lg">
                 {loading
                   ? "Loading..."
                   : restaurantName}
@@ -473,7 +474,7 @@ function RestaurantLayout() {
 
           <div className="flex items-center gap-2">
             {!loading && restaurant && (
-              <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 sm:flex">
+              <div className="portal-workspace-chip hidden items-center gap-2 rounded-lg border px-3 py-2 sm:flex">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
                     restaurant.status === "active" &&
@@ -497,7 +498,7 @@ function RestaurantLayout() {
 
             <button
               type="button"
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+              className="portal-control relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               aria-label="Notifications"
             >
               <Bell
@@ -509,7 +510,7 @@ function RestaurantLayout() {
             </button>
 
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-[10px] font-black text-white"
+              className="portal-avatar flex h-9 w-9 items-center justify-center rounded-lg text-[10px] font-black text-white"
               aria-label="Account"
             >
               {userInitials}
