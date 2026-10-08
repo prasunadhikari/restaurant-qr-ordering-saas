@@ -3,19 +3,20 @@ import {
   BarChart3,
   Bell,
   Grid2X2,
+  LogOut,
   Menu,
   QrCode,
   Settings,
   ShoppingBag,
   Store,
   Table2,
-  User,
   UsersRound,
   UserRoundCog,
 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { apiRequest } from "../services/api";
+import { clearOwnerSession } from "../services/authSession";
 import type { Restaurant } from "../services/restaurantService";
 
 interface CurrentUser {
@@ -34,6 +35,7 @@ interface UserResponse {
 }
 
 function RestaurantLayout() {
+  const navigate = useNavigate();
   const [restaurant, setRestaurant] =
     useState<Restaurant | null>(null);
 
@@ -44,6 +46,11 @@ function RestaurantLayout() {
   const [error, setError] = useState("");
 
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const logout = () => {
+    clearOwnerSession();
+    navigate("/login", { replace: true });
+  };
 
   const navigation = [
     {
@@ -426,13 +433,12 @@ function RestaurantLayout() {
 
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Account options"
+                onClick={logout}
+                className="portal-control flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700"
+                aria-label="Sign out of owner account"
+                title="Sign out"
               >
-                <User
-                  size={15}
-                  strokeWidth={1.8}
-                />
+                <LogOut size={16} strokeWidth={1.8} />
               </button>
             </div>
           )}
