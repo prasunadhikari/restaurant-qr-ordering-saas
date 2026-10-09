@@ -16,6 +16,7 @@ export interface Restaurant {
   address: string;
   restaurantType?: string;
   acceptingOrders?: boolean;
+  isOpen?: boolean;
   paymentSettings?: {
     cashEnabled: boolean;
     esewaEnabled: boolean;

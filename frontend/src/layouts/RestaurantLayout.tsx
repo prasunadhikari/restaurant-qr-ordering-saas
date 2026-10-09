@@ -174,58 +174,6 @@ function RestaurantLayout() {
       .join("");
   };
 
-  const isRestaurantOpen = () => {
-    if (!restaurant?.openingHours?.open) {
-      return false;
-    }
-
-    if (!restaurant.openingHours.close) {
-      return false;
-    }
-
-    const now = new Date();
-
-    const currentMinutes =
-      now.getHours() * 60 + now.getMinutes();
-
-    const [openHour, openMinute] =
-      restaurant.openingHours.open
-        .split(":")
-        .map(Number);
-
-    const [closeHour, closeMinute] =
-      restaurant.openingHours.close
-        .split(":")
-        .map(Number);
-
-    if (
-      Number.isNaN(openHour) ||
-      Number.isNaN(openMinute) ||
-      Number.isNaN(closeHour) ||
-      Number.isNaN(closeMinute)
-    ) {
-      return false;
-    }
-
-    const openMinutes =
-      openHour * 60 + openMinute;
-
-    const closeMinutes =
-      closeHour * 60 + closeMinute;
-
-    if (closeMinutes < openMinutes) {
-      return (
-        currentMinutes >= openMinutes ||
-        currentMinutes <= closeMinutes
-      );
-    }
-
-    return (
-      currentMinutes >= openMinutes &&
-      currentMinutes <= closeMinutes
-    );
-  };
-
   const restaurantName =
     restaurant?.name || "Restaurant";
 
@@ -318,7 +266,7 @@ function RestaurantLayout() {
                 <span
                   className={`h-2 w-2 rounded-full ${
                     restaurant.status === "active" &&
-                    isRestaurantOpen()
+                    restaurant.isOpen
                       ? "bg-emerald-500"
                       : restaurant.status === "active"
                         ? "bg-amber-500"
@@ -330,14 +278,14 @@ function RestaurantLayout() {
                   className={`text-xs font-semibold ${
                     restaurant.status !== "active"
                       ? "text-slate-500"
-                      : isRestaurantOpen()
+                      : restaurant.isOpen
                         ? "text-emerald-600"
                         : "text-amber-600"
                   }`}
                 >
                   {restaurant.status !== "active"
                     ? restaurant.status
-                    : isRestaurantOpen()
+                    : restaurant.isOpen
                       ? "Open"
                       : "Closed"}
                 </span>
@@ -484,7 +432,7 @@ function RestaurantLayout() {
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
                     restaurant.status === "active" &&
-                    isRestaurantOpen()
+                    restaurant.isOpen
                       ? "bg-emerald-500"
                       : restaurant.status === "active"
                         ? "bg-amber-500"
@@ -495,7 +443,7 @@ function RestaurantLayout() {
                 <span className="text-[10px] font-bold text-slate-600">
                   {restaurant.status !== "active"
                     ? restaurant.status
-                    : isRestaurantOpen()
+                    : restaurant.isOpen
                       ? "Open"
                       : "Closed"}
                 </span>

@@ -8,6 +8,7 @@ import Order, { type OrderPaymentMethod } from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import TableSession from "../models/TableSession.js";
+import { isRestaurantOpen } from "../utils/restaurantStatus.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
 
@@ -51,33 +52,6 @@ const publicPaymentSettings = (restaurant: {
 const handleError = (error: unknown, res: Response, message: string): void => {
   console.error(message, error);
   res.status(500).json({ success: false, message });
-};
-
-const isRestaurantOpen = (
-  restaurant: {
-    acceptingOrders: boolean;
-    openingHours?: { open: string; close: string };
-    status: string;
-  },
-  now = new Date(),
-): boolean => {
-  if (restaurant.status !== "active" || !restaurant.acceptingOrders) return false;
-  const open = restaurant.openingHours?.open;
-  const close = restaurant.openingHours?.close;
-  if (!open || !close) return true;
-
-  const toMinutes = (value: string): number | null => {
-    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
-  };
-  const openAt = toMinutes(open);
-  const closeAt = toMinutes(close);
-  if (openAt === null || closeAt === null) return true;
-  const current = now.getHours() * 60 + now.getMinutes();
-
-  return openAt <= closeAt
-    ? current >= openAt && current < closeAt
-    : current >= openAt || current < closeAt;
 };
 
 const getPublicContext = async (

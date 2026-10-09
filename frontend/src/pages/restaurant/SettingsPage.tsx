@@ -373,7 +373,9 @@ function SettingsPage() {
 
       <Card>
         <h3 className="text-lg font-bold text-slate-900">Opening hours</h3>
-        <p className="mt-1 text-sm text-slate-500">Daily hours shown to your customers.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Daily hours shown to your customers in Nepal time (Asia/Kathmandu).
+        </p>
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="opening-time" className="mb-2 block text-sm font-medium text-slate-700">Opening time</label>

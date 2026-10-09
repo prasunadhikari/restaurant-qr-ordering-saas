@@ -4,6 +4,7 @@ import { basename, resolve, sep } from "node:path";
 
 import Restaurant from "../models/Restaurant.js";
 import User from "../models/User.js";
+import { isRestaurantOpen } from "../utils/restaurantStatus.js";
 
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 
@@ -284,7 +285,10 @@ export const getMyRestaurant = async (
     res.status(200).json({
       success: true,
       data: {
-        restaurant,
+        restaurant: {
+          ...restaurant.toObject(),
+          isOpen: isRestaurantOpen(restaurant),
+        },
       },
     });
   } catch (error) {
