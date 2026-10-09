@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ClipboardList, LayoutDashboard, LogOut, Menu, Utensils, X } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { getStaffProfile, type StaffProfile } from "../services/staffService";
 import { clearStaffSession } from "../services/authSession";
+import {
+  advanceStaffOrder,
+  getStaffOrders,
+} from "../services/staffService";
+import NewOrderAlert, { type NewOrderNotice } from "../components/orders/NewOrderAlert";
 
 function StaffLayout() {
   const navigate = useNavigate();
@@ -11,6 +16,22 @@ function StaffLayout() {
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [error, setError] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const loadNewOrderNotices = useCallback(async (): Promise<NewOrderNotice[]> => {
+    const orders = await getStaffOrders();
+    return orders.map((order) => ({
+      id: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      tableNumber: order.tableNumber,
+      items: order.items,
+      createdAt: order.createdAt,
+    }));
+  }, []);
+
+  const acceptNewOrder = useCallback(async (orderId: string) => {
+    await advanceStaffOrder(orderId, "accepted");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +73,12 @@ function StaffLayout() {
 
   return (
     <div className="portal-shell min-h-screen">
+      {profile && (
+        <NewOrderAlert
+          orders={loadNewOrderNotices}
+          onAccept={acceptNewOrder}
+        />
+      )}
       {mobileOpen && (
         <button
           type="button"

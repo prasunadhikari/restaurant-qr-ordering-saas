@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Banknote,
   ClipboardList,
@@ -18,6 +18,11 @@ import {
   type ManagerProfile,
 } from "../services/managerService";
 import { clearManagerSession } from "../services/authSession";
+import {
+  getManagerOrders,
+  updateManagerOrder,
+} from "../services/managerService";
+import NewOrderAlert, { type NewOrderNotice } from "../components/orders/NewOrderAlert";
 
 const navigation = [
   { to: "/manager", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -35,6 +40,27 @@ function ManagerLayout() {
   const [profile, setProfile] = useState<ManagerProfile | null>(null);
   const [error, setError] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const loadNewOrderNotices = useCallback(async (): Promise<NewOrderNotice[]> => {
+    const orders = await getManagerOrders();
+    return orders.map((order) => ({
+      id: order._id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      tableNumber:
+        typeof order.tableId === "object" ? order.tableId.tableNumber : "—",
+      items: order.items,
+      createdAt: order.createdAt,
+    }));
+  }, []);
+
+  const acceptNewOrder = useCallback(async (orderId: string) => {
+    await updateManagerOrder(orderId, "accepted");
+  }, []);
+
+  const declineNewOrder = useCallback(async (orderId: string) => {
+    await updateManagerOrder(orderId, "cancelled", "Declined by manager.");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -76,6 +102,13 @@ function ManagerLayout() {
 
   return (
     <div className="portal-shell min-h-screen">
+      {profile && (
+        <NewOrderAlert
+          orders={loadNewOrderNotices}
+          onAccept={acceptNewOrder}
+          onDecline={declineNewOrder}
+        />
+      )}
       {mobileOpen && (
         <button
           type="button"
