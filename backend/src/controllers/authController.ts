@@ -4,6 +4,7 @@ import { type Request, type Response } from "express";
 
 import User from "../models/User.js";
 import { generateLoginAlias } from "../utils/loginAlias.js";
+import { isPlatformAdminEmail, platformAdminEmail } from "../utils/adminLogin.js";
 
 const generateToken = (userId: string): string => {
   const secret = process.env.JWT_SECRET;
@@ -118,11 +119,13 @@ export const login = async (
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({
-      $or: [{ email: normalizedEmail }, { loginAlias: normalizedEmail }],
-    });
+    const user = await User.findOne({ email: normalizedEmail }) ??
+      await User.findOne({
+        loginAlias: normalizedEmail,
+        role: { $ne: "platform_admin" },
+      });
 
-    if (!user) {
+    if (!user || user.role === "platform_admin") {
       res.status(401).json({
         success: false,
         message: "Invalid email or password",
@@ -173,6 +176,52 @@ export const login = async (
       success: false,
       message: "Failed to login",
     });
+  }
+};
+
+export const adminLogin = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const email = typeof req.body?.email === "string" ? req.body.email : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    if (!email.trim() || !password) {
+      res.status(400).json({ success: false, message: "Admin email and password are required" });
+      return;
+    }
+    if (!isPlatformAdminEmail(email)) {
+      res.status(401).json({ success: false, message: "Invalid admin email or password" });
+      return;
+    }
+
+    const user = await User.findOne({
+      email: platformAdminEmail,
+      role: "platform_admin",
+    });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      res.status(401).json({ success: false, message: "Invalid admin email or password" });
+      return;
+    }
+
+    const token = generateToken(user._id.toString());
+    res.status(200).json({
+      success: true,
+      message: "Admin login successful",
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          restaurantId: user.restaurantId,
+        },
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("Admin login error:", error);
+    res.status(500).json({ success: false, message: "Failed to login" });
   }
 };
 

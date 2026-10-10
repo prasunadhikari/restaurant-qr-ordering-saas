@@ -21,12 +21,14 @@ interface LoginResponse {
   };
 }
 
+const ADMIN_EMAIL = "admin@restaurantos.local";
+
 function AdminLoginPage() {
   const navigate = useNavigate();
 
   const existingToken = localStorage.getItem("adminToken");
 
-  const [email, setEmail] = useState("");
+  const [email] = useState(ADMIN_EMAIL);
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -52,7 +54,7 @@ function AdminLoginPage() {
       setLoading(true);
 
       const response = await apiRequest<LoginResponse>(
-        "/auth/login",
+        "/auth/admin/login",
         {
           method: "POST",
           body: JSON.stringify({
@@ -147,7 +149,7 @@ function AdminLoginPage() {
                   htmlFor="admin-email"
                   className="mb-2 block text-sm font-semibold text-slate-700"
                 >
-                  Login ID or email
+                  Admin email
                 </label>
 
                 <div className="relative">
@@ -159,14 +161,12 @@ function AdminLoginPage() {
 
                   <Input
                     id="admin-email"
-                    type="text"
-                    placeholder="admin-name or contact email"
+                    type="email"
+                    placeholder={ADMIN_EMAIL}
                     value={email}
-                    onChange={(event) =>
-                      setEmail(event.target.value)
-                    }
+                    readOnly
                     className="pl-10"
-                    autoComplete="username"
+                    autoComplete="email"
                   />
                 </div>
               </div>
