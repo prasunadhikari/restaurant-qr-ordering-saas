@@ -452,11 +452,8 @@ function RestaurantMenuPage() {
   const activeSession =
     tableSessionState.routeKey === routeKey ? tableSessionState.session : null;
   const sessionOrders = activeSession?.orders ?? [];
-  const activeOrderCount = sessionOrders.filter((order) =>
-    !["served", "cancelled"].includes(order.status.toLowerCase()),
-  ).length;
   const visibleSessionOrders = sessionOrders.filter(
-    (order) => !["served", "cancelled"].includes(order.status.toLowerCase()),
+    (order) => order.status.toLowerCase() !== "cancelled",
   );
   const lastOrderBelongsToCurrentSession =
     !lastOrder?.tableSessionId ||
@@ -523,7 +520,7 @@ function RestaurantMenuPage() {
               <div>
                 <p className="text-sm font-bold text-[#173b32]">Welcome back 👋</p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Table {table.tableNumber} · Your Table Orders · {activeOrderCount} active {activeOrderCount === 1 ? "order" : "orders"}
+                  Table {table.tableNumber} · Your Table Orders · {visibleSessionOrders.length} {visibleSessionOrders.length === 1 ? "order" : "orders"}
                 </p>
               </div>
               <span className="shrink-0 rounded-full bg-[#edf3ec] px-3 py-1 text-xs font-semibold text-[#315b40]">Order more below</span>
