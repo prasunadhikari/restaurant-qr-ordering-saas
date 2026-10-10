@@ -9,7 +9,12 @@ import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import TableSession from "../models/TableSession.js";
 import { isRestaurantOpen } from "../utils/restaurantStatus.js";
-import { allSessionOrdersServed, refreshTableSessionBill } from "../utils/tableBill.js";
+import {
+  addBillPaymentActivity,
+  allSessionOrdersServed,
+  refreshTableSessionBill,
+  updateCurrentPaymentActivity,
+} from "../utils/tableBill.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
 
@@ -575,6 +580,25 @@ export const updateCustomerOrderPayment = async (
     bill.paymentMethod = selectedMethod;
     bill.paymentAmount = bill.total - bill.paidAmount;
     bill.paymentStatus = action === "submit" ? "pending_verification" : "pending";
+    const paymentDetails = selectedMethod === "bank_qr"
+      ? {
+          bankName: settings?.bankName ?? "",
+          accountName: settings?.bankAccountName ?? "",
+          accountNumber: settings?.bankAccountNumber ?? "",
+        }
+      : undefined;
+    const activityAt = new Date();
+    if (action === "submit") {
+      updateCurrentPaymentActivity(
+        bill,
+        bill.paymentStatus,
+        activityAt,
+        bill.paymentAmount,
+        paymentDetails,
+      );
+    } else {
+      addBillPaymentActivity(bill, activityAt, paymentDetails);
+    }
     session.bill = bill;
     await session.save();
     await Order.updateMany(

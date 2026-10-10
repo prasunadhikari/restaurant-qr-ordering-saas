@@ -17,6 +17,22 @@ export interface ITableBillItem {
   orderNumbers: string[];
 }
 
+export interface ITableBillPaymentActivity {
+  _id?: mongoose.Types.ObjectId;
+  paymentMethod: "cash" | "esewa" | "khalti" | "bank_qr";
+  paymentAmount: number;
+  paymentStatus: TableBillPaymentStatus;
+  paymentDetails?: ITableBillPaymentDetails;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ITableBillPaymentDetails {
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
+}
+
 export interface ITableBill {
   orderIds: mongoose.Types.ObjectId[];
   items: ITableBillItem[];
@@ -25,6 +41,7 @@ export interface ITableBill {
   paymentAmount: number;
   paymentMethod?: "cash" | "esewa" | "khalti" | "bank_qr";
   paymentStatus: TableBillPaymentStatus;
+  paymentHistory?: ITableBillPaymentActivity[];
 }
 
 export interface ITableSession extends Document {
@@ -92,6 +109,28 @@ const tableSessionSchema = new Schema<ITableSession>(
             type: String,
             enum: ["unpaid", "pending", "pending_verification", "paid", "rejected"],
           },
+          paymentHistory: [
+            {
+              paymentMethod: {
+                type: String,
+                enum: ["cash", "esewa", "khalti", "bank_qr"],
+                required: true,
+              },
+              paymentAmount: { type: Number, min: 0, required: true },
+              paymentStatus: {
+                type: String,
+                enum: ["unpaid", "pending", "pending_verification", "paid", "rejected"],
+                required: true,
+              },
+              paymentDetails: {
+                bankName: { type: String, default: "" },
+                accountName: { type: String, default: "" },
+                accountNumber: { type: String, default: "" },
+              },
+              createdAt: { type: Date, required: true },
+              updatedAt: { type: Date, required: true },
+            },
+          ],
         },
         { _id: false },
       ),

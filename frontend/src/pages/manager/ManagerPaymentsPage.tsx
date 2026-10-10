@@ -1,44 +1,59 @@
-import { useEffect, useState } from "react";
-import { Check, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Banknote, Check, CreditCard, RefreshCw, X } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import {
   getManagerPayments,
   updateManagerPayment,
-  type ManagerBill,
+  type ManagerPayment,
 } from "../../services/managerService";
 
-const tableNumberFor = (order: ManagerBill) =>
+const timeZone = "Asia/Kathmandu";
+const todayInRestaurantTimeZone = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  return `${parts.find((part) => part.type === "year")?.value}-${parts.find((part) => part.type === "month")?.value}-${parts.find((part) => part.type === "day")?.value}`;
+};
+const paymentMethodLabel: Record<NonNullable<ManagerPayment["paymentMethod"]>, string> = {
+  cash: "Cash",
+  esewa: "eSewa",
+  khalti: "Khalti",
+  bank_qr: "Bank QR",
+};
+const tableNumberFor = (order: ManagerPayment) =>
   typeof order.tableId === "string" ? "—" : order.tableId?.tableNumber ?? "—";
 
 function ManagerPaymentsPage() {
-  const [orders, setOrders] = useState<ManagerBill[]>([]);
+  const [payments, setPayments] = useState<ManagerPayment[]>([]);
+  const [date, setDate] = useState(todayInRestaurantTimeZone);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setError("");
-      setOrders(await getManagerPayments());
+      setPayments(await getManagerPayments(date));
     } catch (cause) {
       console.error("Failed to load manager payments:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to load payments.");
     } finally {
       setLoading(false);
     }
-  };
-  useEffect(() => { void Promise.resolve().then(load); }, []);
+  }, [date]);
+  useEffect(() => { void load(); }, [load]);
 
-  const act = async (order: ManagerBill, action: "confirm" | "reject") => {
-    setBusy(order._id);
+  const act = async (payment: ManagerPayment, action: "confirm" | "reject") => {
+    setBusy(payment._id);
     setError("");
     try {
-      const paymentStatus = await updateManagerPayment(order._id, action);
-      if (paymentStatus === "paid" || paymentStatus === "unpaid" || paymentStatus === "rejected") {
-        setOrders((current) => current.filter((entry) => entry._id !== order._id));
-      }
+      await updateManagerPayment(payment.tableSessionId, action);
+      await load();
     } catch (cause) {
       console.error("Failed to verify manager payment:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to update payment.");
@@ -47,37 +62,83 @@ function ManagerPaymentsPage() {
     }
   };
 
+  const paid = payments.filter((payment) => payment.paymentStatus === "paid");
+  const totalPaid = paid.reduce((sum, payment) => sum + payment.paymentAmount, 0);
+  const cashPaid = paid
+    .filter((payment) => payment.paymentMethod === "cash")
+    .reduce((sum, payment) => sum + payment.paymentAmount, 0);
+  const onlinePaid = totalPaid - cashPaid;
+  const selectedDay = new Date(`${date}T12:00:00+05:45`);
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Payment desk</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Payments</h1><p className="mt-2 text-sm text-slate-500">Verify counter cash and customer-submitted QR payments.</p></div>
+        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Payment desk</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Payments</h1><p className="mt-2 text-sm text-slate-500">Daily payment activity, collection status, and payment source.</p></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="payment-date" className="text-sm font-medium text-slate-600">Business day</label>
+          <input
+            id="payment-date"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+          />
         <Button type="button" variant="outline" onClick={() => void load()}><RefreshCw size={15} /> Refresh</Button>
+        </div>
       </header>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-      {loading ? <Card><p className="text-sm text-slate-500">Loading payments…</p></Card> : orders.length === 0 ? (
-        <Card className="py-12 text-center"><h2 className="font-semibold">No payments to review</h2><p className="mt-1 text-sm text-slate-500">Customer payment activity will appear here.</p></Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collected {selectedDay.toLocaleDateString("en-NP", { timeZone })}</p><p className="mt-2 text-2xl font-bold">NPR {totalPaid.toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">{paid.length} confirmed payments</p></Card>
+        <Card><div className="flex items-center gap-2 text-slate-500"><Banknote size={16} /><p className="text-xs font-semibold uppercase tracking-wide">Cash</p></div><p className="mt-2 text-2xl font-bold">NPR {cashPaid.toLocaleString()}</p></Card>
+        <Card><div className="flex items-center gap-2 text-slate-500"><CreditCard size={16} /><p className="text-xs font-semibold uppercase tracking-wide">Online</p></div><p className="mt-2 text-2xl font-bold">NPR {onlinePaid.toLocaleString()}</p></Card>
+      </div>
+      {loading ? <Card><p className="text-sm text-slate-500">Loading payments…</p></Card> : payments.length === 0 ? (
+        <Card className="py-12 text-center"><h2 className="font-semibold">No payment activity for this day</h2><p className="mt-1 text-sm text-slate-500">Payment requests and completed collections will appear here.</p></Card>
       ) : (
         <Card padding="none">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] text-left">
-              <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Order</th><th className="px-5 py-3">Table</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Method</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Date</th><th className="px-5 py-3">Action</th></tr></thead>
+            <table className="w-full min-w-[980px] text-left">
+              <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3">Bill / table</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Paid from</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Payment time (Nepal)</th><th className="px-5 py-3">Action</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {orders.map((order) => {
-                  const status = order.paymentStatus ?? "unpaid";
-                  const canConfirm = status === "pending" || status === "pending_verification";
-                  const canReject = status === "pending_verification" && order.paymentMethod !== "cash";
+                {payments.map((payment) => {
+                  const status = payment.paymentStatus ?? "unpaid";
+                  const method = payment.paymentMethod;
+                  const activityTime = status === "paid" || status === "rejected"
+                    ? payment.updatedAt
+                    : payment.createdAt;
+                  const timeLabel = status === "paid"
+                    ? "Confirmed"
+                    : status === "rejected"
+                      ? "Rejected"
+                      : status === "pending_verification"
+                        ? "Submitted"
+                        : "Requested";
+                  const canConfirm = payment.canConfirm;
+                  const canReject = payment.canReject;
+                  const bankDetails = payment.paymentDetails;
                   return (
-                    <tr key={order._id}>
-                      <td className="px-5 py-4 text-sm font-semibold">{order.orderNumber}</td>
-                      <td className="px-5 py-4 text-sm">Table {tableNumberFor(order)}</td>
-                      <td className="px-5 py-4 text-sm font-semibold">NPR {order.paymentAmount.toLocaleString()}</td>
-                      <td className="px-5 py-4 text-sm capitalize">{order.paymentMethod?.replace("_", " ") ?? "—"}</td>
-                      <td className="px-5 py-4"><Badge variant={status === "paid" ? "success" : status === "pending_verification" ? "warning" : status === "rejected" ? "danger" : "default"}>{status.replaceAll("_", " ")}</Badge></td>
-                      <td className="px-5 py-4 text-xs text-slate-500">{new Date(order.createdAt).toLocaleString()}</td>
+                    <tr key={payment._id}>
+                      <td className="px-5 py-4"><p className="text-sm font-semibold">{payment.orderNumber}</p><p className="mt-1 text-xs text-slate-500">Table {tableNumberFor(payment)}</p></td>
+                      <td className="px-5 py-4"><p className="text-sm font-semibold">NPR {payment.paymentAmount.toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">Bill total NPR {payment.total.toLocaleString()}</p></td>
+                      <td className="px-5 py-4 text-sm">
+                        <p className="font-semibold">{method ? paymentMethodLabel[method] : "—"}</p>
+                        {method === "bank_qr" && (
+                          <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+                            {bankDetails?.bankName && <p>Bank: {bankDetails.bankName}</p>}
+                            {bankDetails?.accountName && <p>Account name: {bankDetails.accountName}</p>}
+                            {bankDetails?.accountNumber && <p>Account no.: {bankDetails.accountNumber}</p>}
+                          </div>
+                        )}
+                        {method === "cash" && <p className="mt-1 text-xs text-slate-500">Paid at counter</p>}
+                      </td>
+                      <td className="px-5 py-4"><Badge variant={status === "paid" ? "success" : status === "pending_verification" || status === "pending" ? "warning" : status === "rejected" ? "danger" : "default"}>{status.replaceAll("_", " ")}</Badge></td>
+                      <td className="px-5 py-4 text-xs text-slate-600">
+                        {activityTime ? <><p className="font-semibold">{timeLabel}</p><p className="mt-1">{new Date(activityTime).toLocaleString("en-NP", { timeZone })}</p></> : "Time not recorded"}
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
-                          {canConfirm && <Button type="button" size="sm" disabled={busy === order._id} onClick={() => void act(order, "confirm")}><Check size={14} />{order.paymentMethod === "cash" ? "Confirm cash" : "Confirm"}</Button>}
-                          {canReject && <button type="button" disabled={busy === order._id} onClick={() => void act(order, "reject")} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-red-700 hover:bg-red-50"><X size={14} />Reject</button>}
+                          {canConfirm && <Button type="button" size="sm" disabled={busy === payment._id} onClick={() => void act(payment, "confirm")}><Check size={14} />{method === "cash" ? "Confirm cash" : "Confirm"}</Button>}
+                          {canReject && <button type="button" disabled={busy === payment._id} onClick={() => void act(payment, "reject")} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-red-700 hover:bg-red-50"><X size={14} />Reject</button>}
                           {!canConfirm && !canReject && <span className="text-xs text-slate-400">—</span>}
                         </div>
                       </td>

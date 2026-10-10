@@ -13,10 +13,15 @@ import TableSession from "../models/TableSession.js";
 import User from "../models/User.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
-import { allSessionOrdersServed, refreshTableSessionBill } from "../utils/tableBill.js";
+import {
+  allSessionOrdersServed,
+  refreshTableSessionBill,
+  updateCurrentPaymentActivity,
+} from "../utils/tableBill.js";
 import { getTableOverviews } from "../utils/tableOverview.js";
 import { uploadPath } from "../utils/uploadStorage.js";
 import { generateLoginAlias } from "../utils/loginAlias.js";
+import { getRestaurantDayRange } from "../utils/restaurantStatus.js";
 
 const idFor = (req: AuthenticatedRequest): string | undefined =>
   req.user?.role === "restaurant_manager" ? req.user.restaurantId : undefined;
@@ -783,33 +788,94 @@ export const getManagerPayments = async (
     res.status(403).json({ success: false, message: "Manager account is not assigned to a restaurant" });
     return;
   }
+  const requestedDate = typeof req.query.date === "string" ? req.query.date : undefined;
+  if ((req.query.date !== undefined && !requestedDate) || !getRestaurantDayRange(requestedDate)) {
+    res.status(400).json({ success: false, message: "Choose a valid payment date" });
+    return;
+  }
+  const dayRange = getRestaurantDayRange(requestedDate);
+  if (!dayRange) {
+    res.status(400).json({ success: false, message: "Choose a valid payment date" });
+    return;
+  }
   try {
+    const restaurant = await Restaurant.findById(restaurantId).select("paymentSettings");
     const sessions = await TableSession.find({
       restaurantId,
-      status: "active",
-      "bill.paymentStatus": { $in: ["pending", "pending_verification"] },
-    }).sort({ updatedAt: -1 }).limit(500);
-    const payments = await Promise.all(sessions.map(async (session) => {
+      $or: [
+        { "bill.paymentHistory.createdAt": { $gte: dayRange.start, $lt: dayRange.end } },
+        { "bill.paymentHistory.updatedAt": { $gte: dayRange.start, $lt: dayRange.end } },
+        {
+          status: "active",
+          "bill.paymentStatus": { $in: ["pending", "pending_verification"] },
+        },
+      ],
+    }).sort({ updatedAt: -1 });
+    const payments = (await Promise.all(sessions.map(async (session) => {
       const table = await RestaurantTable.findOne({
         _id: session.tableId,
         restaurantId,
       }).select("tableNumber");
-      return {
-        _id: session._id,
-        tableSessionId: session._id,
-        orderNumber: `Table ${table?.tableNumber ?? session.tableNumber}`,
-        status: "served",
-        tableId: { _id: session.tableId, tableNumber: table?.tableNumber ?? session.tableNumber },
-        items: session.bill?.items ?? [],
-        total: session.bill?.total ?? 0,
-        paidAmount: session.bill?.paidAmount ?? 0,
-        paymentAmount: session.bill?.paymentAmount ?? 0,
-        paymentMethod: session.bill?.paymentMethod,
-        paymentStatus: session.bill?.paymentStatus,
-        createdAt: session.startedAt,
-      };
-    }));
-    res.json({ success: true, data: { payments } });
+      const bill = session.bill;
+      if (!bill) return [];
+      const activities = bill.paymentHistory ?? [];
+      const entries = activities.length > 0
+        ? activities
+        : bill.paymentMethod && bill.paymentStatus !== "unpaid"
+          ? [{
+              paymentMethod: bill.paymentMethod,
+              paymentAmount: bill.paymentAmount || bill.paidAmount,
+              paymentStatus: bill.paymentStatus,
+              createdAt: session.startedAt,
+              updatedAt: session.updatedAt,
+            }]
+          : [];
+      return entries.flatMap((activity, index) => {
+        const createdAt = new Date(activity.createdAt);
+        const updatedAt = new Date(activity.updatedAt);
+        const isInSelectedDay =
+          (createdAt >= dayRange.start && createdAt < dayRange.end) ||
+          (updatedAt >= dayRange.start && updatedAt < dayRange.end);
+        const isCurrentReview = session.status === "active" &&
+          bill.paymentMethod === activity.paymentMethod &&
+          bill.paymentStatus === activity.paymentStatus &&
+          ["pending", "pending_verification"].includes(activity.paymentStatus);
+        if (!isInSelectedDay && !isCurrentReview) return [];
+        const isCurrent = session.status === "active" &&
+          bill.paymentMethod === activity.paymentMethod &&
+          bill.paymentStatus === activity.paymentStatus;
+        return [{
+          _id: activity._id?.toString() ?? `${session._id}-${index}`,
+          tableSessionId: session._id,
+          orderNumber: `Table ${table?.tableNumber ?? session.tableNumber}`,
+          tableId: { _id: session.tableId, tableNumber: table?.tableNumber ?? session.tableNumber },
+          total: bill.total,
+          paidAmount: bill.paidAmount,
+          paymentAmount: activity.paymentAmount,
+          paymentMethod: activity.paymentMethod,
+          paymentStatus: activity.paymentStatus,
+          paymentDetails: activity.paymentDetails,
+          createdAt: activity.createdAt,
+          updatedAt: activity.updatedAt,
+          canConfirm: isCurrent && ["pending", "pending_verification"].includes(activity.paymentStatus),
+          canReject: isCurrent && activity.paymentStatus === "pending_verification" && activity.paymentMethod !== "cash",
+        }];
+      });
+    }))).flat().sort((left, right) =>
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+    );
+    res.json({
+      success: true,
+      data: {
+        date: dayRange.date,
+        bankDetails: {
+          bankName: restaurant?.paymentSettings?.bankName ?? "",
+          accountName: restaurant?.paymentSettings?.bankAccountName ?? "",
+          accountNumber: restaurant?.paymentSettings?.bankAccountNumber ?? "",
+        },
+        payments,
+      },
+    });
   } catch (error) {
     errorResponse(error, res, "Failed to load payments");
   }
@@ -867,9 +933,11 @@ export const updateManagerPayment = async (
     if (action === "confirm") {
       bill.paidAmount += bill.paymentAmount;
       bill.paymentStatus = bill.paidAmount >= bill.total ? "paid" : "unpaid";
+      updateCurrentPaymentActivity(bill, "paid", new Date(), bill.paymentAmount);
       bill.paymentAmount = 0;
     } else {
       bill.paymentStatus = "rejected";
+      updateCurrentPaymentActivity(bill, "rejected", new Date(), bill.paymentAmount);
       bill.paymentAmount = 0;
     }
     session.bill = bill;

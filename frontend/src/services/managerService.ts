@@ -46,6 +46,18 @@ export interface ManagerBill {
   createdAt: string;
 }
 
+export interface ManagerPayment extends Omit<ManagerBill, "items" | "status"> {
+  paymentUpdatedAt?: string;
+  updatedAt: string;
+  canConfirm: boolean;
+  canReject: boolean;
+  paymentDetails?: {
+    bankName?: string;
+    accountName?: string;
+    accountNumber?: string;
+  };
+}
+
 export interface ManagerStaffCall {
   _id: string;
   type: "assistance";
@@ -229,14 +241,16 @@ export const closeManagerTableSession = async (
   (await managerRequest<{
     session: { tableNumber: string; status: "closed"; startedAt: string; closedAt: string };
   }>(`/manager/tables/${encodeURIComponent(tableId)}/session/close`, { method: "POST" })).session;
-export const getManagerPayments = async (): Promise<ManagerBill[]> =>
-  (await managerRequest<{ payments: ManagerBill[] }>("/manager/payments")).payments;
+export const getManagerPayments = async (date: string): Promise<ManagerPayment[]> =>
+  (await managerRequest<{ payments: ManagerPayment[] }>(
+    `/manager/payments?date=${encodeURIComponent(date)}`,
+  )).payments;
 export const updateManagerPayment = async (
-  id: string,
+  tableSessionId: string,
   action: "confirm" | "reject",
 ): Promise<ManagerBill["paymentStatus"]> =>
   (await managerRequest<{ paymentStatus: ManagerBill["paymentStatus"] }>(
-    `/manager/payments/${encodeURIComponent(id)}`,
+    `/manager/payments/${encodeURIComponent(tableSessionId)}`,
     { method: "PATCH", body: JSON.stringify({ action }) },
   )).paymentStatus;
 export const getManagerBills = async (): Promise<ManagerBill[]> =>

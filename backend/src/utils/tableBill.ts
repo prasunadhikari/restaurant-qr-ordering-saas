@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import TableSession, {
   type ITableBill,
+  type ITableBillPaymentDetails,
 } from "../models/TableSession.js";
 
 const isCancelled = (status: string) => status.toLowerCase() === "cancelled";
@@ -73,7 +74,55 @@ export const buildTableSessionBill = (
     paymentAmount: changedOrders ? 0 : previousBill?.paymentAmount ?? 0,
     paymentMethod: changedOrders ? undefined : previousBill?.paymentMethod,
     paymentStatus,
+    paymentHistory: previousBill?.paymentHistory ?? [],
   };
+};
+
+export const updateCurrentPaymentActivity = (
+  bill: ITableBill,
+  status: ITableBill["paymentStatus"],
+  at: Date,
+  paymentAmount = bill.paymentAmount,
+  paymentDetails?: ITableBillPaymentDetails,
+): void => {
+  const history = bill.paymentHistory ?? (bill.paymentHistory = []);
+  const activity = [...history].reverse().find((entry) =>
+    entry.paymentMethod === bill.paymentMethod &&
+    ["pending", "pending_verification"].includes(entry.paymentStatus),
+  );
+  if (activity) {
+    activity.paymentStatus = status;
+    activity.paymentAmount = paymentAmount;
+    activity.updatedAt = at;
+    if (paymentDetails) activity.paymentDetails = paymentDetails;
+    return;
+  }
+  if (!bill.paymentMethod) return;
+  history.push({
+    paymentMethod: bill.paymentMethod,
+    paymentAmount,
+    paymentStatus: status,
+    paymentDetails,
+    createdAt: at,
+    updatedAt: at,
+  });
+};
+
+export const addBillPaymentActivity = (
+  bill: ITableBill,
+  at: Date,
+  paymentDetails?: ITableBillPaymentDetails,
+): void => {
+  if (!bill.paymentMethod) return;
+  const history = bill.paymentHistory ?? (bill.paymentHistory = []);
+  history.push({
+    paymentMethod: bill.paymentMethod,
+    paymentAmount: bill.paymentAmount,
+    paymentStatus: bill.paymentStatus,
+    paymentDetails,
+    createdAt: at,
+    updatedAt: at,
+  });
 };
 
 export const refreshTableSessionBill = async (
