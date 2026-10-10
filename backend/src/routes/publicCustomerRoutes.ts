@@ -7,6 +7,7 @@ import {
   getPublicRestaurantMenu,
   updateCustomerOrderPayment,
 } from "../controllers/publicCustomerController.js";
+import { createPublicStaffCall } from "../controllers/staffCallController.js";
 
 const router = Router();
 
@@ -25,6 +26,10 @@ router.post(
 router.post(
   "/restaurants/:restaurantSlug/t/:tableNumber/orders",
   createCustomerOrder,
+);
+router.post(
+  "/restaurants/:restaurantSlug/t/:tableNumber/staff-calls",
+  createPublicStaffCall,
 );
 router.get("/orders/:trackingToken", getCustomerOrder);
 router.post("/orders/:trackingToken/payment", updateCustomerOrderPayment);

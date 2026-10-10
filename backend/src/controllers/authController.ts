@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { type Request, type Response } from "express";
 
 import User from "../models/User.js";
+import { generateLoginAlias } from "../utils/loginAlias.js";
 
 const generateToken = (userId: string): string => {
   const secret = process.env.JWT_SECRET;
@@ -67,6 +68,7 @@ export const register = async (
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
+      loginAlias: await generateLoginAlias("restaurant_owner", name.trim()),
       password: hashedPassword,
       role: "restaurant_owner",
     });
@@ -81,6 +83,7 @@ export const register = async (
           id: user._id,
           name: user.name,
           email: user.email,
+          loginAlias: user.loginAlias,
           role: user.role,
           restaurantId: user.restaurantId,
         },
@@ -116,7 +119,7 @@ export const login = async (
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({
-      email: normalizedEmail,
+      $or: [{ email: normalizedEmail }, { loginAlias: normalizedEmail }],
     });
 
     if (!user) {
@@ -141,6 +144,10 @@ export const login = async (
 
       return;
     }
+    if (!user.loginAlias) {
+      user.loginAlias = await generateLoginAlias(user.role, user.name);
+      await user.save();
+    }
 
     const token = generateToken(user._id.toString());
 
@@ -152,6 +159,7 @@ export const login = async (
           id: user._id,
           name: user.name,
           email: user.email,
+          loginAlias: user.loginAlias,
           role: user.role,
           restaurantId: user.restaurantId,
         },
@@ -182,13 +190,18 @@ export const managerLogin = async (
       return;
     }
 
+    const identifier = email.trim().toLowerCase();
     const user = await User.findOne({
-      email: email.trim().toLowerCase(),
+      $or: [{ email: identifier }, { loginAlias: identifier }],
       role: "restaurant_manager",
     });
     if (!user || !(await bcrypt.compare(password, user.password))) {
       res.status(401).json({ success: false, message: "Invalid email or password" });
       return;
+    }
+    if (!user.loginAlias) {
+      user.loginAlias = await generateLoginAlias(user.role, user.name);
+      await user.save();
     }
     if (!user.restaurantId) {
       res.status(403).json({
@@ -207,6 +220,7 @@ export const managerLogin = async (
           id: user._id,
           name: user.name,
           email: user.email,
+          loginAlias: user.loginAlias,
           role: user.role,
           restaurantId: user.restaurantId,
         },
@@ -255,6 +269,7 @@ export const createDevelopmentAdmin = async (
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
+      loginAlias: await generateLoginAlias("platform_admin", name.trim()),
       password: hashedPassword,
       role: "platform_admin",
     });
@@ -269,6 +284,7 @@ export const createDevelopmentAdmin = async (
           id: user._id,
           name: user.name,
           email: user.email,
+          loginAlias: user.loginAlias,
           role: user.role,
         },
         token,

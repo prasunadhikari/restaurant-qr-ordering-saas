@@ -6,6 +6,7 @@ import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
+import { getTableOverviews } from "../utils/tableOverview.js";
 
 const supportedStatuses: OrderStatus[] = [
   "pending",
@@ -148,6 +149,28 @@ export const getStaffOrders = async (
     res.json({ success: true, data: { orders: data } });
   } catch (error) {
     handleError(error, res, "Failed to load staff orders");
+  }
+};
+
+export const getStaffTables = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const restaurantId = req.user?.restaurantId;
+  if (!restaurantId) {
+    res.status(403).json({
+      success: false,
+      message: "Staff account is not assigned to a restaurant",
+    });
+    return;
+  }
+  try {
+    res.json({
+      success: true,
+      data: { tables: await getTableOverviews(restaurantId) },
+    });
+  } catch (error) {
+    handleError(error, res, "Failed to load staff tables");
   }
 };
 

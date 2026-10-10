@@ -1,7 +1,7 @@
 import { Response } from "express";
 import mongoose from "mongoose";
 import { unlink } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import { basename } from "node:path";
 
 import MenuCategory from "../models/MenuCategory.js";
 import MenuItem from "../models/MenuItem.js";
@@ -10,6 +10,7 @@ import RestaurantTable from "../models/RestaurantTable.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
+import { uploadPath } from "../utils/uploadStorage.js";
 
 type OwnerRequest = AuthenticatedRequest & {
   restaurantId: string;
@@ -540,12 +541,7 @@ export const uploadMenuItemImage = async (
     await item.populate("categoryId", "name");
 
     if (previousImage.startsWith("/uploads/menu/")) {
-      const previousPath = resolve(
-        process.cwd(),
-        "uploads",
-        "menu",
-        basename(previousImage),
-      );
+      const previousPath = uploadPath("menu", basename(previousImage));
       if (previousPath !== req.file.path) {
         await unlink(previousPath).catch((error: NodeJS.ErrnoException) => {
           if (error.code !== "ENOENT") {
@@ -590,12 +586,7 @@ export const deleteMenuItem = async (
       return;
     }
     if (item.image.startsWith("/uploads/menu/")) {
-      const imagePath = resolve(
-        process.cwd(),
-        "uploads",
-        "menu",
-        basename(item.image),
-      );
+      const imagePath = uploadPath("menu", basename(item.image));
       await unlink(imagePath).catch((error: NodeJS.ErrnoException) => {
         if (error.code !== "ENOENT") {
           console.error("Failed to remove deleted menu photo:", error);

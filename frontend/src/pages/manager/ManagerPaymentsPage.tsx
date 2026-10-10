@@ -6,14 +6,14 @@ import Card from "../../components/ui/Card";
 import {
   getManagerPayments,
   updateManagerPayment,
-  type ManagerOrder,
+  type ManagerBill,
 } from "../../services/managerService";
 
-const tableNumberFor = (order: ManagerOrder) =>
+const tableNumberFor = (order: ManagerBill) =>
   typeof order.tableId === "string" ? "—" : order.tableId?.tableNumber ?? "—";
 
 function ManagerPaymentsPage() {
-  const [orders, setOrders] = useState<ManagerOrder[]>([]);
+  const [orders, setOrders] = useState<ManagerBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -31,12 +31,14 @@ function ManagerPaymentsPage() {
   };
   useEffect(() => { void Promise.resolve().then(load); }, []);
 
-  const act = async (order: ManagerOrder, action: "confirm" | "reject") => {
+  const act = async (order: ManagerBill, action: "confirm" | "reject") => {
     setBusy(order._id);
     setError("");
     try {
       const paymentStatus = await updateManagerPayment(order._id, action);
-      setOrders((current) => current.map((entry) => entry._id === order._id ? { ...entry, paymentStatus } : entry));
+      if (paymentStatus === "paid" || paymentStatus === "unpaid" || paymentStatus === "rejected") {
+        setOrders((current) => current.filter((entry) => entry._id !== order._id));
+      }
     } catch (cause) {
       console.error("Failed to verify manager payment:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to update payment.");
@@ -66,9 +68,9 @@ function ManagerPaymentsPage() {
                   const canReject = status === "pending_verification" && order.paymentMethod !== "cash";
                   return (
                     <tr key={order._id}>
-                      <td className="px-5 py-4 text-sm font-semibold">#{order.orderNumber}</td>
+                      <td className="px-5 py-4 text-sm font-semibold">{order.orderNumber}</td>
                       <td className="px-5 py-4 text-sm">Table {tableNumberFor(order)}</td>
-                      <td className="px-5 py-4 text-sm font-semibold">NPR {order.total.toLocaleString()}</td>
+                      <td className="px-5 py-4 text-sm font-semibold">NPR {order.paymentAmount.toLocaleString()}</td>
                       <td className="px-5 py-4 text-sm capitalize">{order.paymentMethod?.replace("_", " ") ?? "—"}</td>
                       <td className="px-5 py-4"><Badge variant={status === "paid" ? "success" : status === "pending_verification" ? "warning" : status === "rejected" ? "danger" : "default"}>{status.replaceAll("_", " ")}</Badge></td>
                       <td className="px-5 py-4 text-xs text-slate-500">{new Date(order.createdAt).toLocaleString()}</td>

@@ -4,8 +4,9 @@ import { Response } from "express";
 
 import User from "../models/User.js";
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { generateLoginAlias } from "../utils/loginAlias.js";
 
-const staffFields = "name email role restaurantId createdAt";
+const staffFields = "name email loginAlias role restaurantId createdAt";
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const isValidId = (value: string): boolean =>
@@ -114,6 +115,7 @@ export const createRestaurantStaff = async (
     const user = await User.create({
       name,
       email,
+      loginAlias: await generateLoginAlias("restaurant_staff", name),
       password: await bcrypt.hash(password, 10),
       role: "restaurant_staff",
       restaurantId,

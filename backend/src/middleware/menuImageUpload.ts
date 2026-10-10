@@ -1,10 +1,10 @@
 import { mkdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
 import type { RequestHandler } from "express";
 import multer from "multer";
+import { uploadPath } from "../utils/uploadStorage.js";
 
-const uploadDirectory = resolve(process.cwd(), "uploads", "menu");
+const uploadDirectory = uploadPath("menu");
 
 const extensionByMimeType: Record<string, string> = {
   "image/jpeg": ".jpg",

@@ -9,6 +9,7 @@ import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import TableSession from "../models/TableSession.js";
 import { isRestaurantOpen } from "../utils/restaurantStatus.js";
+import { allSessionOrdersServed, refreshTableSessionBill } from "../utils/tableBill.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
 import { isGeneratedDishImage } from "../utils/menuImages.js";
 
@@ -140,6 +141,8 @@ export const getOrCreatePublicTableSession = async (
       res.json({ success: true, data: { session: null, orders: [] } });
       return;
     }
+    const bill = await refreshTableSessionBill(session._id);
+    await syncTableOccupancy(table._id, restaurant._id);
     const orders = await Order.find({
       restaurantId: restaurant._id,
       tableId: table._id,
@@ -153,6 +156,9 @@ export const getOrCreatePublicTableSession = async (
           status: session.status,
           tableNumber: session.tableNumber,
           startedAt: session.startedAt,
+          bill: bill
+            ? { ...bill, canPay: allSessionOrdersServed(orders) }
+            : null,
         },
         orders: orders.map((order) => ({
           orderNumber: order.orderNumber,
@@ -361,14 +367,15 @@ export const createCustomerOrder = async (
       0,
     );
 
+    const session = await getOrCreateActiveTableSession(
+      restaurant._id,
+      table._id,
+      table.tableNumber,
+    );
     const order = await Order.create({
       restaurantId: restaurant._id,
       tableId: table._id,
-      tableSessionId: (await getOrCreateActiveTableSession(
-        restaurant._id,
-        table._id,
-        table.tableNumber,
-      ))._id,
+      tableSessionId: session._id,
       orderNumber: randomBytes(4).toString("hex").toUpperCase(),
       trackingToken: randomUUID(),
       status: "pending",
@@ -377,6 +384,7 @@ export const createCustomerOrder = async (
       specialInstructions: orderNote,
       total,
     });
+    await refreshTableSessionBill(session._id);
     await syncTableOccupancy(table._id, restaurant._id);
 
     res.status(201).json({
@@ -480,8 +488,39 @@ export const updateCustomerOrderPayment = async (
       res.status(404).json({ success: false, message: "Order not found" });
       return;
     }
-    if (order.status.toLowerCase() === "cancelled") {
-      res.status(409).json({ success: false, message: "Payment is unavailable for a cancelled order" });
+    if (!order.tableSessionId) {
+      res.status(409).json({ success: false, message: "This order is not linked to an active table bill" });
+      return;
+    }
+    const session = await TableSession.findOne({
+      _id: order.tableSessionId,
+      restaurantId: order.restaurantId,
+      tableId: order.tableId,
+      status: "active",
+    });
+    if (!session) {
+      res.status(409).json({ success: false, message: "This table session is no longer active" });
+      return;
+    }
+    const bill = await refreshTableSessionBill(session._id);
+    if (!bill) {
+      res.status(409).json({ success: false, message: "There is no bill to pay for this table session" });
+      return;
+    }
+    const sessionOrders = await Order.find({
+      restaurantId: order.restaurantId,
+      tableId: order.tableId,
+      tableSessionId: session._id,
+    });
+    if (!allSessionOrdersServed(sessionOrders)) {
+      res.status(409).json({
+        success: false,
+        message: "Payment is available after every order in this table session has been served",
+      });
+      return;
+    }
+    if (bill.paidAmount >= bill.total || bill.paymentStatus === "paid") {
+      res.status(409).json({ success: false, message: "The table bill has already been paid" });
       return;
     }
 
@@ -512,13 +551,10 @@ export const updateCustomerOrderPayment = async (
       return;
     }
 
-    if (
-      order.paymentStatus === "paid" ||
-      order.paymentStatus === "pending_verification"
-    ) {
+    if (bill.paymentStatus === "pending_verification") {
       res.status(409).json({
         success: false,
-        message: "This order already has a payment awaiting confirmation",
+        message: "This table bill already has a payment awaiting verification",
       });
       return;
     }
@@ -526,25 +562,42 @@ export const updateCustomerOrderPayment = async (
     if (
       action === "submit" &&
       (selectedMethod === "cash" ||
-        order.paymentMethod !== selectedMethod ||
-        order.paymentStatus !== "pending")
+        bill.paymentMethod !== selectedMethod ||
+        bill.paymentStatus !== "pending")
     ) {
       res.status(409).json({
         success: false,
-        message: "Select this online payment method before submitting payment",
+        message: "Select this online payment method for the table bill before submitting payment",
       });
       return;
     }
 
-    order.paymentMethod = selectedMethod;
-    order.paymentStatus = action === "submit" ? "pending_verification" : "pending";
-    await order.save();
+    bill.paymentMethod = selectedMethod;
+    bill.paymentAmount = bill.total - bill.paidAmount;
+    bill.paymentStatus = action === "submit" ? "pending_verification" : "pending";
+    session.bill = bill;
+    await session.save();
+    await Order.updateMany(
+      {
+        restaurantId: order.restaurantId,
+        tableId: order.tableId,
+        tableSessionId: session._id,
+        status: { $nin: ["cancelled"] },
+      },
+      {
+        $set: {
+          paymentMethod: selectedMethod,
+          paymentStatus: bill.paymentStatus,
+        },
+      },
+    );
 
     res.json({
       success: true,
       data: {
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
+        paymentMethod: bill.paymentMethod,
+        paymentStatus: bill.paymentStatus,
+        bill: { ...session.toObject().bill, canPay: true },
       },
     });
   } catch (error) {

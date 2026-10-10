@@ -37,6 +37,28 @@ export interface StaffOrder {
   createdAt: string;
 }
 
+export interface StaffTable {
+  _id: string;
+  tableNumber: string;
+  capacity: number;
+  status: "available" | "occupied";
+  activeSessionId: string | null;
+  activeOrderCount: number;
+  servedOrderCount: number;
+  paymentStatus: "unpaid" | "pending" | "pending_verification" | "paid" | "rejected";
+  billTotal: number;
+  paidAmount: number;
+  canClear: boolean;
+}
+
+export interface StaffCall {
+  _id: string;
+  type: "assistance" | "bill";
+  status: "pending" | "attended";
+  createdAt: string;
+  tableId: { _id: string; tableNumber: string } | string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -64,6 +86,26 @@ export const getStaffProfile = async (): Promise<StaffProfile> =>
 
 export const getStaffOrders = async (): Promise<StaffOrder[]> =>
   (await staffRequest<{ orders: StaffOrder[] }>("/staff/orders")).orders;
+
+export const getStaffTables = async (): Promise<StaffTable[]> =>
+  (await staffRequest<{ tables: StaffTable[] }>("/staff/tables")).tables;
+
+export const closeStaffTableSession = async (
+  tableId: string,
+): Promise<void> => {
+  await staffRequest(`/staff/tables/${encodeURIComponent(tableId)}/session/close`, {
+    method: "POST",
+  });
+};
+
+export const getStaffCalls = async (): Promise<StaffCall[]> =>
+  (await staffRequest<{ requests: StaffCall[] }>("/staff/staff-calls")).requests;
+
+export const attendStaffCall = async (id: string): Promise<void> => {
+  await staffRequest(`/staff/staff-calls/${encodeURIComponent(id)}/attend`, {
+    method: "PATCH",
+  });
+};
 
 export const getStaffOrder = async (id: string): Promise<StaffOrder> =>
   (await staffRequest<{ order: StaffOrder }>(`/staff/orders/${encodeURIComponent(id)}`))

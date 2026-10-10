@@ -65,10 +65,10 @@ function ManagerLoginPage() {
           {error && <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <form onSubmit={submit} className="mt-6 space-y-5">
             <div>
-              <label htmlFor="manager-email" className="mb-2 block text-sm font-semibold">Email address</label>
+              <label htmlFor="manager-email" className="mb-2 block text-sm font-semibold">Login ID or email</label>
               <div className="relative">
                 <Mail size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input id="manager-email" type="email" required autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager@restaurant.com" className="pl-10" />
+                <Input id="manager-email" type="text" required autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager-name or contact email" className="pl-10" />
               </div>
             </div>
             <div>

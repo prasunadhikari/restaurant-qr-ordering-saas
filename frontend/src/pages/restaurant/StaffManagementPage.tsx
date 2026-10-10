@@ -7,20 +7,10 @@ import Input from "../../components/ui/Input";
 import {
   createRestaurantStaff,
   deleteRestaurantStaff,
-  getRestaurantSettings,
   getRestaurantStaff,
   updateRestaurantStaff,
   type RestaurantStaffMember,
 } from "../../services/restaurantDashboardService";
-
-const buildCafeEmail = (personName: string, cafeName: string) => {
-  const person = personName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const cafe = cafeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const localPart = person || "staff";
-  const cafeTag = cafe || "cafe";
-
-  return `${localPart}+${cafeTag}@gmail.com`;
-};
 
 function StaffManagementPage() {
   const [staff, setStaff] = useState<RestaurantStaffMember[]>([]);
@@ -28,7 +18,6 @@ function StaffManagementPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
-  const [restaurantName, setRestaurantName] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RestaurantStaffMember | null>(null);
   const [name, setName] = useState("");
@@ -37,14 +26,10 @@ function StaffManagementPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      getRestaurantStaff(),
-      getRestaurantSettings(),
-    ])
-      .then(([members, settings]) => {
+    getRestaurantStaff()
+      .then((members) => {
         if (active) {
           setStaff(members);
-          setRestaurantName(settings.name);
         }
       })
       .catch((cause: unknown) => {
@@ -63,15 +48,6 @@ function StaffManagementPage() {
 
   const handleNameChange = (value: string) => {
     setName(value);
-    if (!value.trim() || !restaurantName.trim()) {
-      return;
-    }
-    setEmail((currentEmail) => {
-      if (!currentEmail || currentEmail === buildCafeEmail(value, restaurantName)) {
-        return buildCafeEmail(value, restaurantName);
-      }
-      return currentEmail;
-    });
   };
 
   const resetForm = () => {
@@ -156,7 +132,7 @@ function StaffManagementPage() {
           <p className="text-sm text-slate-500">Restaurant team</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Staff accounts</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Create and manage the staff who handle orders for your restaurant.
+            Create staff accounts with real contact emails; each account receives a separate login ID.
           </p>
         </div>
         {!formOpen && (
@@ -180,7 +156,7 @@ function StaffManagementPage() {
                 {editing ? "Update staff account" : "Create staff account"}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Staff sign in at <span className="font-semibold text-slate-700">/staff/login</span> using these credentials.
+                Staff sign in at <span className="font-semibold text-slate-700">/staff/login</span> with their generated login ID and password.
               </p>
             </div>
             <button
@@ -203,7 +179,7 @@ function StaffManagementPage() {
             />
             <Input
               id="staff-email"
-              label="Email address"
+              label="Contact email address"
               type="email"
               required
               autoComplete="email"
@@ -275,7 +251,8 @@ function StaffManagementPage() {
                   </span>
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-900">{member.name}</p>
-                    <p className="truncate text-sm text-slate-500">{member.email}</p>
+                    <p className="truncate text-sm text-slate-500">Contact: {member.email}</p>
+                    <p className="truncate text-xs font-semibold text-[#173b32]">Login ID: {member.loginAlias || member.email}</p>
                     <p className="mt-0.5 text-xs text-slate-400">
                       Added {new Date(member.createdAt).toLocaleDateString()}
                     </p>

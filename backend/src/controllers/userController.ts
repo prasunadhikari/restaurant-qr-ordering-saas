@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 
 import User from "../models/User.js";
 import Restaurant from "../models/Restaurant.js";
+import { generateLoginAlias } from "../utils/loginAlias.js";
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -38,6 +39,10 @@ export const getCurrentUser = async (
 
       return;
     }
+    if (!user.loginAlias) {
+      user.loginAlias = await generateLoginAlias(user.role, user.name);
+      await user.save();
+    }
 
     res.status(200).json({
       success: true,
@@ -46,6 +51,7 @@ export const getCurrentUser = async (
           id: user._id,
           name: user.name,
           email: user.email,
+          loginAlias: user.loginAlias,
           role: user.role,
           restaurantId: user.restaurantId,
         },
@@ -258,6 +264,7 @@ export const createRestaurantOwner = async (
     const owner = await User.create({
       name: name.trim(),
       email: normalizedEmail,
+      loginAlias: await generateLoginAlias("restaurant_owner", name.trim()),
       password: hashedPassword,
       role: "restaurant_owner",
       restaurantId: restaurant._id,

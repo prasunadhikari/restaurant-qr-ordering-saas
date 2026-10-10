@@ -23,6 +23,7 @@ interface CurrentUser {
   id: string;
   name: string;
   email: string;
+  loginAlias?: string;
   role: string;
   restaurantId?: string;
 }
@@ -377,6 +378,7 @@ function RestaurantLayout() {
                   {user?.role?.replaceAll("_", " ") ||
                     "Restaurant user"}
                 </p>
+                {user?.loginAlias && <p className="truncate text-[10px] font-semibold text-emerald-700">Login ID: {user.loginAlias}</p>}
               </div>
 
               <button

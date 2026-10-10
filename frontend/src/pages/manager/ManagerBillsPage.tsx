@@ -4,7 +4,7 @@ import { useOutletContext } from "react-router-dom";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
-import { getManagerBills, type ManagerOrder, type ManagerProfile } from "../../services/managerService";
+import { getManagerBills, type ManagerBill, type ManagerProfile } from "../../services/managerService";
 
 type ReceiptPaperSize = "58mm" | "80mm" | "A4";
 const PAPER_SIZE_KEY = "aaganManagerReceiptPaperSize";
@@ -21,8 +21,8 @@ const escapeHtml = (value: string) =>
 
 function ManagerBillsPage() {
   const profile = useOutletContext<ManagerProfile | null>();
-  const [bills, setBills] = useState<ManagerOrder[]>([]);
-  const [selected, setSelected] = useState<ManagerOrder | null>(null);
+  const [bills, setBills] = useState<ManagerBill[]>([]);
+  const [selected, setSelected] = useState<ManagerBill | null>(null);
   const [paperSize, setPaperSize] = useState<ReceiptPaperSize>(() => {
     const saved = localStorage.getItem(PAPER_SIZE_KEY);
     return paperSizes.find((size) => size === saved) ?? "80mm";
@@ -40,10 +40,10 @@ function ManagerBillsPage() {
     return () => { active = false; };
   }, []);
 
-  const table = (order: ManagerOrder) =>
-    typeof order.tableId === "string" ? "—" : order.tableId?.tableNumber ?? "—";
+  const table = (bill: ManagerBill) =>
+    typeof bill.tableId === "string" ? "—" : bill.tableId?.tableNumber ?? "—";
 
-  const printBill = (order: ManagerOrder) => {
+  const printBill = (order: ManagerBill) => {
     const printWindow = window.open("", "_blank", "width=520,height=760");
     if (!printWindow) {
       setError("Allow pop-ups for this site to print a bill.");
@@ -56,6 +56,8 @@ function ManagerBillsPage() {
     const tableNumber = escapeHtml(table(order));
     const paymentMethod = escapeHtml(order.paymentMethod?.replaceAll("_", " ") ?? "—");
     const paymentStatus = escapeHtml((order.paymentStatus ?? "unpaid").replaceAll("_", " "));
+    const paidAmount = order.paidAmount;
+    const amountDue = Math.max(0, order.total - paidAmount);
     const orderDate = escapeHtml(new Date(order.createdAt).toLocaleString());
     const isA4 = paperSize === "A4";
     const pageSize = isA4 ? "A4 portrait" : `${paperSize} auto`;
@@ -98,6 +100,7 @@ function ManagerBillsPage() {
             .item-price { flex: 0 0 auto; white-space: nowrap; }
             .note { margin: 0 0 1mm; color: #555; font-size: 8pt; }
             .total { display: flex; justify-content: space-between; margin-top: 1mm; padding-top: 3mm; border-top: 1px solid #111; font-size: 13pt; font-weight: 700; }
+            .payment-summary { display: flex; justify-content: space-between; gap: 3mm; margin-top: 2mm; font-size: 9pt; }
             .payment { display: flex; justify-content: space-between; gap: 3mm; margin-top: 2mm; font-size: 9pt; }
             .thanks { margin-top: 7mm; text-align: center; font-size: 8pt; color: #444; }
             @media screen { body { min-height: 100vh; padding-top: 8mm; } }
@@ -116,6 +119,8 @@ function ManagerBillsPage() {
             </section>
             <section class="items">${rows}</section>
             <div class="total"><span>Total</span><span>NPR ${order.total.toLocaleString()}</span></div>
+            <div class="payment-summary"><span>Paid</span><span>NPR ${paidAmount.toLocaleString()}</span></div>
+            <div class="payment-summary"><strong>Due</strong><strong>NPR ${amountDue.toLocaleString()}</strong></div>
             <div class="payment"><span>Payment</span><span>${paymentMethod}</span></div>
             <div class="payment"><span>Status</span><span>${paymentStatus}</span></div>
             <p class="thanks">Thank you for dining with us.</p>
@@ -138,7 +143,7 @@ function ManagerBillsPage() {
       <header>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Order close-out</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight">Bills</h1>
-        <p className="mt-2 text-sm text-slate-500">Review or print a bill from an existing restaurant order.</p>
+        <p className="mt-2 text-sm text-slate-500">Each table session has one combined bill with its orders.</p>
       </header>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
 
@@ -175,7 +180,7 @@ function ManagerBillsPage() {
           <div className="space-y-2">
             {bills.map((order) => (
               <button key={order._id} type="button" onClick={() => setSelected(order)} className={`flex w-full items-center justify-between gap-3 rounded-xl border bg-white p-4 text-left hover:border-emerald-300 ${selected?._id === order._id ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"}`}>
-                <span><span className="block text-sm font-bold">#{order.orderNumber}</span><span className="mt-1 block text-xs text-slate-500">Table {table(order)} · {new Date(order.createdAt).toLocaleString()}</span></span>
+                <span><span className="block text-sm font-bold">Table {table(order)}</span><span className="mt-1 block text-xs text-slate-500">{order.items.length} bill lines · {new Date(order.createdAt).toLocaleString()}</span></span>
                 <span className="text-right"><span className="block text-sm font-semibold">NPR {order.total.toLocaleString()}</span><span className="mt-1 block text-xs capitalize text-slate-500">{(order.paymentStatus ?? "unpaid").replaceAll("_", " ")}</span></span>
               </button>
             ))}
@@ -184,9 +189,9 @@ function ManagerBillsPage() {
             <Card>
               <div className="mx-auto max-w-sm">
                 <div className="text-center"><p className="font-serif text-2xl font-bold tracking-wide">AAGAN</p><p className="mt-1 text-lg font-semibold">{profile?.restaurant.name}</p><p className="mt-1 text-xs text-slate-500">Restaurant bill</p></div>
-                <div className="mt-5 flex justify-between border-y border-dashed border-slate-300 py-3 text-sm"><div><p className="font-bold">Bill #{selected.orderNumber}</p><p className="mt-1 text-slate-500">Table {table(selected)}</p></div><p className="text-right text-xs text-slate-500">{new Date(selected.createdAt).toLocaleString()}</p></div>
+                <div className="mt-5 flex justify-between border-y border-dashed border-slate-300 py-3 text-sm"><div><p className="font-bold">Combined table bill</p><p className="mt-1 text-slate-500">Table {table(selected)}</p></div><p className="text-right text-xs text-slate-500">{new Date(selected.createdAt).toLocaleString()}</p></div>
                 <div className="py-3">{selected.items.map((item, index) => <div key={`${selected._id}-${index}`} className="flex justify-between gap-3 py-2 text-sm"><span>{item.name}<span className="ml-1 text-xs text-slate-500">× {item.quantity}</span></span><span className="shrink-0">NPR {(item.unitPrice * item.quantity).toLocaleString()}</span></div>)}</div>
-                <div className="border-t border-slate-300 pt-3"><div className="flex justify-between text-base font-bold"><span>Total</span><span>NPR {selected.total.toLocaleString()}</span></div><div className="mt-4 flex justify-between text-sm"><span>Payment</span><span className="capitalize">{selected.paymentMethod?.replaceAll("_", " ") ?? "—"}</span></div><div className="mt-2 flex items-center justify-between text-sm"><span>Status</span><Badge variant={selected.paymentStatus === "paid" ? "success" : "warning"}>{(selected.paymentStatus ?? "unpaid").replaceAll("_", " ")}</Badge></div></div>
+                <div className="border-t border-slate-300 pt-3"><div className="flex justify-between text-base font-bold"><span>Total</span><span>NPR {selected.total.toLocaleString()}</span></div><div className="mt-2 flex justify-between text-sm"><span>Paid</span><span>NPR {selected.paidAmount.toLocaleString()}</span></div><div className="mt-2 flex justify-between text-sm font-semibold"><span>Due</span><span>NPR {Math.max(0, selected.total - selected.paidAmount).toLocaleString()}</span></div><div className="mt-4 flex justify-between text-sm"><span>Payment</span><span className="capitalize">{selected.paymentMethod?.replaceAll("_", " ") ?? "—"}</span></div><div className="mt-2 flex items-center justify-between text-sm"><span>Status</span><Badge variant={selected.paymentStatus === "paid" ? "success" : "warning"}>{(selected.paymentStatus ?? "unpaid").replaceAll("_", " ")}</Badge></div></div>
               </div>
               <div className="mt-6 flex justify-end"><Button type="button" onClick={() => printBill(selected)}><Printer size={16} /> Print bill</Button></div>
             </Card>

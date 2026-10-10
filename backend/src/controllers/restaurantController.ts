@@ -7,6 +7,7 @@ import User from "../models/User.js";
 import { isRestaurantOpen } from "../utils/restaurantStatus.js";
 
 import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { uploadPath } from "../utils/uploadStorage.js";
 
 const paymentQrFields = {
   esewa: "esewaQrImage",
@@ -21,7 +22,7 @@ const isPaymentQrProvider = (value: unknown): value is PaymentQrProvider =>
 const removeStoredPaymentQr = async (imagePath: string): Promise<void> => {
   const filename = basename(imagePath);
   if (!filename || filename.includes("\\")) return;
-  const directory = resolve(process.cwd(), "uploads", "payment-qr");
+  const directory = uploadPath("payment-qr");
   const filePath = resolve(directory, filename);
   if (!filePath.startsWith(`${directory}${sep}`)) return;
   try {

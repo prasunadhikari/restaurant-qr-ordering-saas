@@ -90,7 +90,27 @@ export interface CustomerTableSession {
   tableNumber: string;
   startedAt: string;
   orders: CustomerOrder[];
+  bill?: CustomerTableBill | null;
 }
+
+export interface CustomerTableBill {
+  orderIds: string[];
+  items: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    specialInstructions: string;
+    orderNumbers: string[];
+  }>;
+  total: number;
+  paidAmount: number;
+  paymentAmount: number;
+  paymentMethod?: CustomerPaymentMethod;
+  paymentStatus: CustomerPaymentStatus;
+  canPay: boolean;
+}
+
+export type CustomerStaffCallType = "assistance" | "bill";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -209,12 +229,28 @@ export const updateCustomerOrderPayment = async (
   trackingToken: string,
   method: CustomerPaymentMethod,
   action: "select" | "submit",
-): Promise<Pick<CustomerOrder, "paymentMethod" | "paymentStatus">> =>
+): Promise<Pick<CustomerOrder, "paymentMethod" | "paymentStatus"> & { bill?: CustomerTableBill }> =>
   (
     await apiRequest<
-      ApiResponse<Pick<CustomerOrder, "paymentMethod" | "paymentStatus">>
+      ApiResponse<Pick<CustomerOrder, "paymentMethod" | "paymentStatus"> & { bill?: CustomerTableBill }>
     >(`/public/orders/${encodeURIComponent(trackingToken)}/payment`, {
       method: "POST",
       body: JSON.stringify({ method, action }),
     })
   ).data;
+
+export const createCustomerStaffCall = async (
+  restaurantSlug: string,
+  tableNumber: string,
+  sessionToken: string,
+  type: CustomerStaffCallType,
+): Promise<{ _id: string; status: "pending" | "attended"; type: CustomerStaffCallType }> =>
+  (
+    await apiRequest<ApiResponse<{ request: { _id: string; status: "pending" | "attended"; type: CustomerStaffCallType } }>>(
+      `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/staff-calls`,
+      {
+        method: "POST",
+        body: JSON.stringify({ sessionToken, type }),
+      },
+    )
+  ).data.request;

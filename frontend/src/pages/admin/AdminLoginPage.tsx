@@ -147,7 +147,7 @@ function AdminLoginPage() {
                   htmlFor="admin-email"
                   className="mb-2 block text-sm font-semibold text-slate-700"
                 >
-                  Email address
+                  Login ID or email
                 </label>
 
                 <div className="relative">
@@ -159,14 +159,14 @@ function AdminLoginPage() {
 
                   <Input
                     id="admin-email"
-                    type="email"
-                    placeholder="admin@example.com"
+                    type="text"
+                    placeholder="admin-name or contact email"
                     value={email}
                     onChange={(event) =>
                       setEmail(event.target.value)
                     }
                     className="pl-10"
-                    autoComplete="email"
+                    autoComplete="username"
                   />
                 </div>
               </div>

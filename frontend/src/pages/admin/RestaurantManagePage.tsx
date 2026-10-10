@@ -32,6 +32,7 @@ interface RestaurantOwner {
   _id: string;
   name: string;
   email: string;
+  loginAlias?: string;
   restaurantId?: {
     _id: string;
     name: string;
@@ -65,15 +66,6 @@ interface EditOwnerForm {
   password: string;
   confirmPassword: string;
 }
-
-const buildCafeEmail = (personName: string, cafeName: string) => {
-  const person = personName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const cafe = cafeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const localPart = person || "owner";
-  const cafeTag = cafe || "cafe";
-
-  return `${localPart}+${cafeTag}@gmail.com`;
-};
 
 function RestaurantManagePage() {
   const { id } = useParams<{ id: string }>();
@@ -281,22 +273,7 @@ function RestaurantManagePage() {
   };
 
   const handleOwnerNameChange = (value: string) => {
-    setOwnerForm((current) => {
-      const nextOwner = {
-        ...current,
-        name: value,
-      };
-
-      if (!value.trim() || !restaurant?.name) {
-        return nextOwner;
-      }
-
-      if (!current.email || current.email === buildCafeEmail(value, restaurant.name)) {
-        nextOwner.email = buildCafeEmail(value, restaurant.name);
-      }
-
-      return nextOwner;
-    });
+    setOwnerForm((current) => ({ ...current, name: value }));
   };
 
   const handleSaveRestaurant = async (
@@ -1489,8 +1466,9 @@ function RestaurantManagePage() {
 
                               <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
                                 <Mail className="h-4 w-4" />
-                                {owner.email}
+                                Contact: {owner.email}
                               </p>
+                              <p className="mt-1 text-xs font-semibold text-[#173b32]">Login ID: {owner.loginAlias || owner.email}</p>
                             </div>
 
                             <Button
@@ -1573,7 +1551,7 @@ function RestaurantManagePage() {
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Email Address
+                      Contact Email Address
                     </label>
 
                     <input

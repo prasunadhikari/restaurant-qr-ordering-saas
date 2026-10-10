@@ -27,6 +27,7 @@ import {
 import authMiddleware from "../middleware/authMiddleware.js";
 import managerMiddleware from "../middleware/managerMiddleware.js";
 import { uploadMenuImage } from "../middleware/menuImageUpload.js";
+import { attendStaffCallRequest, getStaffCallRequests } from "../controllers/staffCallController.js";
 
 const router = Router();
 
@@ -53,5 +54,7 @@ router.delete("/tables/:id", deleteManagerTable);
 router.get("/payments", getManagerPayments);
 router.patch("/payments/:id", updateManagerPayment);
 router.get("/bills", getManagerBills);
+router.get("/staff-calls", getStaffCallRequests);
+router.patch("/staff-calls/:id/attend", attendStaffCallRequest);
 
 export default router;

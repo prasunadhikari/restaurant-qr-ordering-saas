@@ -25,6 +25,35 @@ export interface ManagerOrder {
   createdAt: string;
 }
 
+export interface ManagerBill {
+  _id: string;
+  tableSessionId: string;
+  orderNumber: string;
+  status: "active" | "closed";
+  tableId: { _id: string; tableNumber: string } | string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    specialInstructions?: string;
+    orderNumbers?: string[];
+  }>;
+  total: number;
+  paidAmount: number;
+  paymentAmount: number;
+  paymentMethod?: ManagerOrder["paymentMethod"];
+  paymentStatus?: ManagerOrder["paymentStatus"];
+  createdAt: string;
+}
+
+export interface ManagerStaffCall {
+  _id: string;
+  type: "assistance" | "bill";
+  status: "pending" | "attended";
+  createdAt: string;
+  tableId: { _id: string; tableNumber: string } | string;
+}
+
 export interface ManagerCategory {
   _id: string;
   name: string;
@@ -50,6 +79,13 @@ export interface ManagerTable {
   qrToken: string;
   status: "available" | "occupied";
   isActive: boolean;
+  activeSessionId?: string | null;
+  activeOrderCount?: number;
+  servedOrderCount?: number;
+  paymentStatus?: ManagerBill["paymentStatus"];
+  billTotal?: number;
+  paidAmount?: number;
+  canClear?: boolean;
 }
 
 export interface ManagerDashboard {
@@ -193,15 +229,26 @@ export const closeManagerTableSession = async (
   (await managerRequest<{
     session: { tableNumber: string; status: "closed"; startedAt: string; closedAt: string };
   }>(`/manager/tables/${encodeURIComponent(tableId)}/session/close`, { method: "POST" })).session;
-export const getManagerPayments = async (): Promise<ManagerOrder[]> =>
-  (await managerRequest<{ payments: ManagerOrder[] }>("/manager/payments")).payments;
+export const getManagerPayments = async (): Promise<ManagerBill[]> =>
+  (await managerRequest<{ payments: ManagerBill[] }>("/manager/payments")).payments;
 export const updateManagerPayment = async (
   id: string,
   action: "confirm" | "reject",
-): Promise<ManagerOrder["paymentStatus"]> =>
-  (await managerRequest<{ paymentStatus: ManagerOrder["paymentStatus"] }>(
+): Promise<ManagerBill["paymentStatus"]> =>
+  (await managerRequest<{ paymentStatus: ManagerBill["paymentStatus"] }>(
     `/manager/payments/${encodeURIComponent(id)}`,
     { method: "PATCH", body: JSON.stringify({ action }) },
   )).paymentStatus;
-export const getManagerBills = async (): Promise<ManagerOrder[]> =>
-  (await managerRequest<{ bills: ManagerOrder[] }>("/manager/bills")).bills;
+export const getManagerBills = async (): Promise<ManagerBill[]> =>
+  (await managerRequest<{ bills: ManagerBill[] }>("/manager/bills")).bills;
+
+export const closeManagerTable = closeManagerTableSession;
+
+export const getManagerStaffCalls = async (): Promise<ManagerStaffCall[]> =>
+  (await managerRequest<{ requests: ManagerStaffCall[] }>("/manager/staff-calls")).requests;
+
+export const attendManagerStaffCall = async (id: string): Promise<void> => {
+  await managerRequest(`/manager/staff-calls/${encodeURIComponent(id)}/attend`, {
+    method: "PATCH",
+  });
+};

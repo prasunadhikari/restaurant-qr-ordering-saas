@@ -167,7 +167,7 @@ function OwnerLoginPage() {
                   htmlFor="owner-email"
                   className="mb-2 block text-sm font-semibold text-[#403b36]"
                 >
-                  Email address
+                  Login ID or email
                 </label>
 
                 <div className="relative">
@@ -179,14 +179,14 @@ function OwnerLoginPage() {
 
                   <Input
                     id="owner-email"
-                    type="email"
-                    placeholder="owner@restaurant.com"
+                    type="text"
+                    placeholder="owner-name or contact email"
                     value={email}
                     onChange={(event) =>
                       setEmail(event.target.value)
                     }
                     className="border-[#ddd4c8] bg-white pl-10"
-                    autoComplete="email"
+                    autoComplete="username"
                   />
                 </div>
               </div>

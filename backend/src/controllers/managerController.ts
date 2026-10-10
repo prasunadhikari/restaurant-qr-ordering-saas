@@ -13,6 +13,10 @@ import TableSession from "../models/TableSession.js";
 import User from "../models/User.js";
 import type { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 import { syncTableOccupancy } from "../utils/tableOccupancy.js";
+import { allSessionOrdersServed, refreshTableSessionBill } from "../utils/tableBill.js";
+import { getTableOverviews } from "../utils/tableOverview.js";
+import { uploadPath } from "../utils/uploadStorage.js";
+import { generateLoginAlias } from "../utils/loginAlias.js";
 
 const idFor = (req: AuthenticatedRequest): string | undefined =>
   req.user?.role === "restaurant_manager" ? req.user.restaurantId : undefined;
@@ -218,6 +222,9 @@ export const updateManagerOrder = async (
       order.declineReason = typeof reason === "string" ? reason.trim() : "";
     }
     await order.save();
+    if (order.tableSessionId) {
+      await refreshTableSessionBill(order.tableSessionId);
+    }
     await syncTableOccupancy(order.tableId, order.restaurantId);
     await order.populate("tableId", "tableNumber");
     res.json({ success: true, data: { order } });
@@ -503,7 +510,7 @@ export const uploadManagerMenuItemImage = async (
     await item.save();
     if (previousImage.startsWith("/uploads/menu/")) {
       const filename = basename(previousImage);
-      const directory = resolve(process.cwd(), "uploads", "menu");
+      const directory = uploadPath("menu");
       const previousFile = resolve(directory, filename);
       if (previousFile.startsWith(`${directory}${sep}`)) {
         await unlink(previousFile).catch((error: unknown) => {
@@ -563,7 +570,7 @@ export const getManagerTables = async (
     return;
   }
   try {
-    const tables = await RestaurantTable.find({ restaurantId }).sort({ tableNumber: 1 });
+    const tables = await getTableOverviews(restaurantId);
     res.json({ success: true, data: { tables } });
   } catch (error) {
     errorResponse(error, res, "Failed to load tables");
@@ -602,22 +609,40 @@ export const closeManagerTableSession = async (
       res.status(404).json({ success: false, message: "There is no active session for this table" });
       return;
     }
+    const bill = await refreshTableSessionBill(session._id);
     const orders = await Order.find({
       restaurantId,
       tableId: table._id,
       tableSessionId: session._id,
     }).select("status paymentStatus");
-    const unsettled = orders.some((order) => {
-      const status = normalizedOrderStatus(order.status);
-      if (status === "cancelled") {
-        return ["pending", "pending_verification", "paid"].includes(order.paymentStatus);
-      }
-      return status !== "served" || order.paymentStatus !== "paid";
-    });
-    if (unsettled) {
+    if (!allSessionOrdersServed(orders)) {
       res.status(409).json({
         success: false,
-        message: "All orders in this session must be served and paid, or cancelled with no payment awaiting review, before closing the table",
+        message: "Every non-cancelled order in this session must be served before clearing the table",
+      });
+      return;
+    }
+    const cancelledWithPayment = orders.some((order) =>
+      normalizedOrderStatus(order.status) === "cancelled" &&
+      ["pending", "pending_verification", "paid"].includes(order.paymentStatus),
+    );
+    if (cancelledWithPayment) {
+      res.status(409).json({
+        success: false,
+        message: "Resolve or refund payments for cancelled orders before clearing the table",
+      });
+      return;
+    }
+    if (bill && (bill.paymentStatus !== "paid" || bill.paidAmount < bill.total)) {
+      res.status(409).json({
+        success: false,
+        message: bill.paymentStatus === "pending_verification"
+          ? "The table bill is awaiting payment verification"
+          : bill.paymentStatus === "pending"
+            ? "Confirm the cash payment before clearing the table"
+            : bill.paymentStatus === "rejected"
+              ? "The table bill payment was rejected and must be resolved before clearing the table"
+              : "The complete table bill must be paid before clearing the table",
       });
       return;
     }
@@ -631,6 +656,10 @@ export const closeManagerTableSession = async (
       res.status(409).json({ success: false, message: "The table session has already been closed" });
       return;
     }
+    await RestaurantTable.updateOne(
+      { _id: table._id, restaurantId },
+      { $set: { status: "available" } },
+    );
     res.json({
       success: true,
       data: {
@@ -755,11 +784,32 @@ export const getManagerPayments = async (
     return;
   }
   try {
-    const orders = await populateOrders(
-      await Order.find({ restaurantId })
-        .sort({ updatedAt: -1 }).limit(500),
-    );
-    res.json({ success: true, data: { payments: orders } });
+    const sessions = await TableSession.find({
+      restaurantId,
+      status: "active",
+      "bill.paymentStatus": { $in: ["pending", "pending_verification"] },
+    }).sort({ updatedAt: -1 }).limit(500);
+    const payments = await Promise.all(sessions.map(async (session) => {
+      const table = await RestaurantTable.findOne({
+        _id: session.tableId,
+        restaurantId,
+      }).select("tableNumber");
+      return {
+        _id: session._id,
+        tableSessionId: session._id,
+        orderNumber: `Table ${table?.tableNumber ?? session.tableNumber}`,
+        status: "served",
+        tableId: { _id: session.tableId, tableNumber: table?.tableNumber ?? session.tableNumber },
+        items: session.bill?.items ?? [],
+        total: session.bill?.total ?? 0,
+        paidAmount: session.bill?.paidAmount ?? 0,
+        paymentAmount: session.bill?.paymentAmount ?? 0,
+        paymentMethod: session.bill?.paymentMethod,
+        paymentStatus: session.bill?.paymentStatus,
+        createdAt: session.startedAt,
+      };
+    }));
+    res.json({ success: true, data: { payments } });
   } catch (error) {
     errorResponse(error, res, "Failed to load payments");
   }
@@ -781,24 +831,64 @@ export const updateManagerPayment = async (
     return;
   }
   try {
-    const order = await Order.findOne({ _id: id, restaurantId });
-    if (!order) {
-      res.status(404).json({ success: false, message: "Order not found" });
+    const session = await TableSession.findOne({
+      _id: id,
+      restaurantId,
+      status: "active",
+    });
+    if (!session) {
+      res.status(404).json({ success: false, message: "Active table bill not found" });
       return;
     }
-    const status = order.paymentStatus ?? "unpaid";
+    const bill = await refreshTableSessionBill(session._id);
+    if (!bill) {
+      res.status(404).json({ success: false, message: "Table bill not found" });
+      return;
+    }
+    const orders = await Order.find({
+      restaurantId,
+      tableId: session.tableId,
+      tableSessionId: session._id,
+    });
+    if (!allSessionOrdersServed(orders)) {
+      res.status(409).json({ success: false, message: "Every order in the table session must be served before payment can be verified" });
+      return;
+    }
+    const status = bill.paymentStatus;
     if (
-      !order.paymentMethod ||
+      !bill.paymentMethod ||
       !["pending", "pending_verification"].includes(status) ||
-      (action === "confirm" && order.paymentMethod !== "cash" && status !== "pending_verification") ||
-      (action === "reject" && (order.paymentMethod === "cash" || status !== "pending_verification"))
+      (action === "confirm" && bill.paymentMethod !== "cash" && status !== "pending_verification") ||
+      (action === "reject" && (bill.paymentMethod === "cash" || status !== "pending_verification"))
     ) {
       res.status(409).json({ success: false, message: "This payment is not awaiting this action" });
       return;
     }
-    order.paymentStatus = (action === "confirm" ? "paid" : "rejected") as OrderPaymentStatus;
-    await order.save();
-    res.json({ success: true, data: { paymentStatus: order.paymentStatus } });
+    if (action === "confirm") {
+      bill.paidAmount += bill.paymentAmount;
+      bill.paymentStatus = bill.paidAmount >= bill.total ? "paid" : "unpaid";
+      bill.paymentAmount = 0;
+    } else {
+      bill.paymentStatus = "rejected";
+      bill.paymentAmount = 0;
+    }
+    session.bill = bill;
+    await session.save();
+    await Order.updateMany(
+      {
+        restaurantId,
+        tableId: session.tableId,
+        tableSessionId: session._id,
+        status: { $ne: "cancelled" },
+      },
+      {
+        $set: {
+          paymentStatus: bill.paymentStatus as OrderPaymentStatus,
+          paymentMethod: bill.paymentMethod,
+        },
+      },
+    );
+    res.json({ success: true, data: { paymentStatus: bill.paymentStatus, bill: session.toObject().bill } });
   } catch (error) {
     errorResponse(error, res, "Failed to update payment");
   }
@@ -814,10 +904,35 @@ export const getManagerBills = async (
     return;
   }
   try {
-    const orders = await populateOrders(
-      await Order.find({ restaurantId, status: { $nin: ["cancelled"] } }).sort({ createdAt: -1 }).limit(500),
+    const activeSessions = await TableSession.find({ restaurantId, status: "active" });
+    await Promise.all(
+      activeSessions
+        .filter((session) => !session.bill)
+        .map((session) => refreshTableSessionBill(session._id)),
     );
-    res.json({ success: true, data: { bills: orders } });
+    const sessions = await TableSession.find({ restaurantId, bill: { $exists: true } })
+      .sort({ startedAt: -1 }).limit(500);
+    const bills = await Promise.all(sessions.map(async (session) => {
+      const table = await RestaurantTable.findOne({
+        _id: session.tableId,
+        restaurantId,
+      }).select("tableNumber");
+      return {
+        _id: session._id,
+        tableSessionId: session._id,
+        orderNumber: `Table ${table?.tableNumber ?? session.tableNumber}`,
+        status: session.status,
+        tableId: { _id: session.tableId, tableNumber: table?.tableNumber ?? session.tableNumber },
+        items: session.bill?.items ?? [],
+        total: session.bill?.total ?? 0,
+        paidAmount: session.bill?.paidAmount ?? 0,
+        paymentAmount: session.bill?.paymentAmount ?? 0,
+        paymentMethod: session.bill?.paymentMethod,
+        paymentStatus: session.bill?.paymentStatus,
+        createdAt: session.startedAt,
+      };
+    }));
+    res.json({ success: true, data: { bills } });
   } catch (error) {
     errorResponse(error, res, "Failed to load bills");
   }
@@ -847,11 +962,12 @@ export const createManager = async (
     const manager = await User.create({
       name,
       email,
+      loginAlias: await generateLoginAlias("restaurant_manager", name),
       password: await bcrypt.hash(password, 10),
       role: "restaurant_manager",
       restaurantId,
     });
-    const safeManager = await User.findById(manager._id).select("name email role restaurantId createdAt");
+    const safeManager = await User.findById(manager._id).select("name email loginAlias role restaurantId createdAt");
     res.status(201).json({ success: true, data: { manager: safeManager } });
   } catch (error) {
     errorResponse(error, res, "Failed to create manager account");
@@ -869,7 +985,7 @@ export const getRestaurantManagers = async (
   }
   try {
     const managers = await User.find({ role: "restaurant_manager", restaurantId })
-      .select("name email role restaurantId createdAt").sort({ name: 1 });
+      .select("name email loginAlias role restaurantId createdAt").sort({ name: 1 });
     res.json({ success: true, data: { managers } });
   } catch (error) {
     errorResponse(error, res, "Failed to load manager accounts");

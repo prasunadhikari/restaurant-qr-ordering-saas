@@ -12,11 +12,18 @@ import {
 import type {
   CustomerOrder,
   CustomerPaymentMethod,
+  CustomerStaffCallType,
+  CustomerTableBill,
   PublicRestaurant,
 } from "../../services/customerService";
 
 interface OrderConfirmationProps {
   order: CustomerOrder;
+  bill: CustomerTableBill | null;
+  staffCallBusy: CustomerStaffCallType | null;
+  staffCallStatus: Partial<Record<CustomerStaffCallType, "pending">>;
+  staffCallError: string;
+  onCallStaff: (type: CustomerStaffCallType) => void;
   itemCount: number;
   paymentSettings: PublicRestaurant["paymentSettings"];
   paymentBusy: boolean;
@@ -47,6 +54,11 @@ const methodLabel: Record<CustomerPaymentMethod, string> = {
 
 function OrderConfirmation({
   order,
+  bill,
+  staffCallBusy,
+  staffCallStatus,
+  staffCallError,
+  onCallStaff,
   itemCount,
   paymentSettings,
   paymentBusy,
@@ -76,7 +88,7 @@ function OrderConfirmation({
   if (paymentSettings.bank) {
     availableOnlineMethods.push({ method: "bank_qr", label: "Bank QR" });
   }
-  const paymentStatus = order.paymentStatus ?? "unpaid";
+  const paymentStatus = bill?.paymentStatus ?? order.paymentStatus ?? "unpaid";
   const selectedQr =
     selectedMethod === "esewa"
       ? paymentSettings.esewa
@@ -95,7 +107,11 @@ function OrderConfirmation({
           : paymentStatus === "pending"
             ? "Pending"
             : "Not selected";
-  const canPay = paymentStatus !== "paid" && paymentStatus !== "pending_verification";
+  const canPay = Boolean(bill?.canPay) &&
+    paymentStatus !== "paid" &&
+    paymentStatus !== "pending_verification";
+  const billTotal = bill?.total ?? order.total;
+  const amountDue = Math.max(0, billTotal - (bill?.paidAmount ?? 0));
 
   const chooseMethod = async (method: CustomerPaymentMethod) => {
     const updated = await onUpdatePayment(method, "select");
@@ -156,10 +172,56 @@ function OrderConfirmation({
                   {order.orderNumber}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
-                  {itemCount} {itemCount === 1 ? "item" : "items"} · NPR{" "}
-                  {order.total.toLocaleString()}
+                  {itemCount} {itemCount === 1 ? "item" : "items"} in this order
                 </p>
               </div>
+
+              {bill && (
+                <div className="rounded-xl border border-[#e9e4d9] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-sm font-bold text-slate-900">Combined table bill</h2>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${bill.canPay ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+                      {bill.canPay ? "Ready to pay" : "Available after all orders are served"}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {bill.items.map((item, index) => (
+                      <div key={`${item.name}-${index}`} className="flex justify-between gap-3 text-sm">
+                        <span>{item.name} <span className="text-slate-500">× {item.quantity}</span></span>
+                        <span className="shrink-0">NPR {(item.unitPrice * item.quantity).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 border-t border-dashed border-slate-200 pt-3 text-sm">
+                    <div className="flex justify-between"><span>Total</span><span>NPR {billTotal.toLocaleString()}</span></div>
+                    <div className="mt-1 flex justify-between"><span>Paid</span><span>NPR {bill.paidAmount.toLocaleString()}</span></div>
+                    <div className="mt-1 flex justify-between font-bold"><span>Due</span><span>NPR {amountDue.toLocaleString()}</span></div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                {(["assistance", "bill"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    disabled={staffCallBusy !== null || staffCallStatus[type] === "pending"}
+                    onClick={() => onCallStaff(type)}
+                    className="min-h-10 rounded-xl border border-[#d9e4dc] bg-white px-3 text-xs font-semibold text-[#173b32] hover:bg-[#f2f7f3] disabled:opacity-60"
+                  >
+                    {staffCallStatus[type] === "pending"
+                      ? type === "bill" ? "Bill requested" : "Staff notified"
+                      : staffCallBusy === type
+                        ? "Sending…"
+                        : type === "bill" ? "Request bill" : "Call staff"}
+                  </button>
+                ))}
+              </div>
+              {staffCallError && (
+                <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {staffCallError}
+                </p>
+              )}
 
               {isCancelled ? (
                 <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm leading-6 text-red-900">
@@ -263,6 +325,11 @@ function OrderConfirmation({
                     {paymentStatus === "paid" ? "Payment confirmed" : "Payment submitted"}
                   </span>
                 )}
+                {!canPay && paymentStatus !== "paid" && paymentStatus !== "pending_verification" && (
+                  <p className="col-span-2 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+                    Payment options will appear after all table orders are served.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={onContinueBrowsing}
@@ -310,7 +377,7 @@ function OrderConfirmation({
                   Amount due
                 </p>
                 <p className="mt-1 font-serif text-3xl font-bold text-[#173b32]">
-                  NPR {order.total.toLocaleString()}
+                  NPR {amountDue.toLocaleString()}
                 </p>
               </div>
 
@@ -420,7 +487,7 @@ function OrderConfirmation({
                   <div>
                     <p className="font-semibold text-slate-900">Open your payment app and scan this QR.</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      Pay NPR {order.total.toLocaleString()} to the restaurant.
+                      Pay NPR {amountDue.toLocaleString()} to the restaurant.
                     </p>
                   </div>
                   {selectedMethod === "bank_qr" && paymentSettings.bank && (
@@ -462,7 +529,7 @@ function OrderConfirmation({
                     </p>
                   </div>
                   <div className="rounded-xl border border-[#e9e4d9] px-4 py-3 text-sm">
-                    <div className="flex justify-between"><span className="text-slate-500">Payment</span><span className="font-semibold">NPR {order.total.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Payment</span><span className="font-semibold">NPR {amountDue.toLocaleString()}</span></div>
                     <div className="mt-2 flex justify-between"><span className="text-slate-500">Method</span><span className="font-semibold">{selectedMethod ? methodLabel[selectedMethod] : ""}</span></div>
                     <div className="mt-2 flex justify-between"><span className="text-slate-500">Status</span><span className="font-semibold text-amber-800">Pending verification</span></div>
                     <div className="mt-2 flex justify-between"><span className="text-slate-500">Order</span><span className="font-semibold">#{order.orderNumber}</span></div>

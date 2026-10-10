@@ -17,6 +17,8 @@ import {
   getPublicMenu,
   placeCustomerOrder,
   updateCustomerOrderPayment,
+  createCustomerStaffCall,
+  type CustomerStaffCallType,
   type CustomerPaymentMethod,
   type CustomerTableSession,
   type PublicMenu,
@@ -45,6 +47,9 @@ function RestaurantMenuPage() {
   const [orderError, setOrderError] = useState("");
   const [paymentError, setPaymentError] = useState("");
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [staffCallBusy, setStaffCallBusy] = useState<CustomerStaffCallType | null>(null);
+  const [staffCallStatus, setStaffCallStatus] = useState<Partial<Record<CustomerStaffCallType, "pending">>>({});
+  const [staffCallError, setStaffCallError] = useState("");
   const [trackingError, setTrackingError] = useState("");
   const [lastOrder, setLastOrder] = useState<CustomerOrder | null>(null);
   const [dismissedCancellationTokens, setDismissedCancellationTokens] = useState<string[]>([]);
@@ -371,6 +376,7 @@ function RestaurantMenuPage() {
             ...current,
             session: {
               ...current.session,
+              ...(payment.bill ? { bill: payment.bill } : {}),
               orders: current.session.orders.map((order) =>
                 order.trackingToken === lastOrder.trackingToken
                   ? { ...order, ...payment }
@@ -388,6 +394,26 @@ function RestaurantMenuPage() {
       return false;
     } finally {
       setPaymentBusy(false);
+    }
+  };
+
+  const handleCallStaff = async (type: CustomerStaffCallType) => {
+    if (!activeSession || staffCallBusy) return;
+    setStaffCallBusy(type);
+    setStaffCallError("");
+    try {
+      await createCustomerStaffCall(
+        restaurantSlug,
+        tableNumber,
+        activeSession.sessionToken,
+        type,
+      );
+      setStaffCallStatus((current) => ({ ...current, [type]: "pending" }));
+    } catch (error) {
+      console.error("Failed to request restaurant staff:", error);
+      setStaffCallError(error instanceof Error ? error.message : "Unable to contact staff.");
+    } finally {
+      setStaffCallBusy(null);
     }
   };
 
@@ -457,6 +483,30 @@ function RestaurantMenuPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f6f0] pb-32">
+      {activeSession && (
+        <aside className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-2xl border border-[#e9e4d9] bg-white p-3 shadow-xl sm:bottom-6 sm:right-6 sm:flex-row">
+          {(["assistance", "bill"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              disabled={staffCallBusy !== null || staffCallStatus[type] === "pending"}
+              onClick={() => void handleCallStaff(type)}
+              className="min-h-10 rounded-xl bg-[#173b32] px-4 text-xs font-semibold text-white transition hover:bg-[#245747] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {staffCallStatus[type] === "pending"
+                ? type === "bill" ? "Bill requested" : "Staff notified"
+                : staffCallBusy === type
+                  ? "Sending…"
+                  : type === "bill" ? "Request bill" : "Call staff"}
+            </button>
+          ))}
+        </aside>
+      )}
+      {staffCallError && (
+        <p role="alert" className="fixed bottom-20 right-4 z-40 max-w-sm rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg sm:right-6">
+          {staffCallError}
+        </p>
+      )}
       <RestaurantHeader
         restaurantName={restaurant.name}
         location={restaurant.address || "Welcome"}
@@ -680,6 +730,11 @@ function RestaurantMenuPage() {
           )}
           <OrderConfirmation
             order={lastOrder}
+            bill={activeSession?.bill ?? null}
+            staffCallBusy={staffCallBusy}
+            staffCallStatus={staffCallStatus}
+            staffCallError={staffCallError}
+            onCallStaff={(type) => void handleCallStaff(type)}
             itemCount={lastOrder.items.reduce(
               (sum, item) => sum + item.quantity,
               0,

@@ -30,6 +30,7 @@ export interface RestaurantStaffMember {
   _id: string;
   name: string;
   email: string;
+  loginAlias?: string;
   role: "restaurant_staff";
   restaurantId: string;
   createdAt: string;
@@ -39,6 +40,7 @@ export interface RestaurantManagerMember {
   _id: string;
   name: string;
   email: string;
+  loginAlias?: string;
   role: "restaurant_manager";
   restaurantId: string;
   createdAt: string;

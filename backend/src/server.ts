@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { resolve } from "node:path";
 
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -12,6 +11,7 @@ import publicCustomerRoutes from "./routes/publicCustomerRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import managerRoutes from "./routes/managerRoutes.js";
+import { uploadsRoot } from "./utils/uploadStorage.js";
 
 dotenv.config();
 
@@ -26,7 +26,7 @@ app.use(
 );
 
 app.use(express.json());
-app.use("/uploads", express.static(resolve(process.cwd(), "uploads"), {
+app.use("/uploads", express.static(uploadsRoot, {
   dotfiles: "deny",
   index: false,
   redirect: false,
