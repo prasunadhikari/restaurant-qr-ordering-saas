@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ImagePlus, Save, Trash2 } from "lucide-react";
+import { ImagePlus, LocateFixed, Save, Trash2 } from "lucide-react";
 
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
@@ -27,10 +27,17 @@ function SettingsPage() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [uploadingQr, setUploadingQr] = useState("");
+  const [locatingRestaurant, setLocatingRestaurant] = useState(false);
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
 
   useEffect(() => {
     void getRestaurantSettings()
-      .then(setRestaurant)
+      .then((settings) => {
+        setRestaurant(settings);
+        setLatitude(settings.qrLocation ? String(settings.qrLocation.latitude) : "");
+        setLongitude(settings.qrLocation ? String(settings.qrLocation.longitude) : "");
+      })
       .catch((err: unknown) => {
         console.error("Failed to load restaurant settings:", err);
         setError(err instanceof Error ? err.message : "Unable to load settings.");
@@ -114,9 +121,56 @@ function SettingsPage() {
     }
   };
 
+  const setRestaurantCoordinates = (
+    latitude: number,
+    longitude: number,
+  ) => {
+    setLatitude(String(latitude));
+    setLongitude(String(longitude));
+    setRestaurant((current) => current
+      ? { ...current, qrLocation: { latitude, longitude } }
+      : current);
+    setSaved(false);
+  };
+
+  const useCurrentRestaurantLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Location services are not available in this browser.");
+      return;
+    }
+    setLocatingRestaurant(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setRestaurantCoordinates(coords.latitude, coords.longitude);
+        setLocatingRestaurant(false);
+      },
+      (cause) => {
+        console.error("Unable to locate the restaurant:", cause);
+        setError(cause.code === cause.PERMISSION_DENIED
+          ? "Allow location access to use the device's current position."
+          : "Unable to get the current location. Enter the coordinates manually.");
+        setLocatingRestaurant(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
+
   const saveSettings = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!restaurant) return;
+    const latitudeValue = latitude.trim() === "" ? null : Number(latitude);
+    const longitudeValue = longitude.trim() === "" ? null : Number(longitude);
+    if (
+      (latitudeValue === null) !== (longitudeValue === null) ||
+      (latitudeValue !== null &&
+        (!Number.isFinite(latitudeValue) || latitudeValue < -90 || latitudeValue > 90)) ||
+      (longitudeValue !== null &&
+        (!Number.isFinite(longitudeValue) || longitudeValue < -180 || longitudeValue > 180))
+    ) {
+      setError("Enter both a valid latitude and longitude, or clear both fields.");
+      return;
+    }
     setSaving(true);
     setError("");
     setSaved(false);
@@ -131,6 +185,9 @@ function SettingsPage() {
         coverImage: restaurant.coverImage,
         openingHours: restaurant.openingHours,
         acceptingOrders: restaurant.acceptingOrders,
+        qrLocation: latitudeValue !== null && longitudeValue !== null
+          ? { latitude: latitudeValue, longitude: longitudeValue }
+          : null,
         paymentSettings: {
           cashEnabled: restaurant.paymentSettings?.cashEnabled ?? true,
           esewaEnabled: restaurant.paymentSettings?.esewaEnabled ?? false,
@@ -252,6 +309,72 @@ function SettingsPage() {
             onChange={(event) => setField("coverImage", event.target.value)}
           />
         </div>
+      </Card>
+
+      <Card>
+        <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">QR location access</h3>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              Customers must allow location access and be within 100 meters of these coordinates to open the QR menu or place an order.
+            </p>
+          </div>
+          <Button type="button" variant="outline" disabled={locatingRestaurant} onClick={useCurrentRestaurantLocation}>
+            <LocateFixed size={16} />
+            {locatingRestaurant ? "Finding location…" : "Use current location"}
+          </Button>
+        </div>
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <Input
+            id="restaurant-latitude"
+            label="Latitude"
+            type="number"
+            step="any"
+            min="-90"
+            max="90"
+            value={latitude}
+            onChange={(event) => {
+              setLatitude(event.target.value);
+              setSaved(false);
+            }}
+          />
+          <Input
+            id="restaurant-longitude"
+            label="Longitude"
+            type="number"
+            step="any"
+            min="-180"
+            max="180"
+            value={longitude}
+            onChange={(event) => {
+              setLongitude(event.target.value);
+              setSaved(false);
+            }}
+          />
+        </div>
+        <p className={`mt-4 rounded-xl p-3 text-sm ${
+          restaurant.qrLocation
+            ? "bg-emerald-50 text-emerald-800"
+            : "bg-amber-50 text-amber-900"
+        }`}>
+          {restaurant.qrLocation
+            ? "Location access is enabled. Customers outside the 100-meter radius will be blocked from the QR menu and new orders."
+            : "Set and save both coordinates to enable QR location protection. Until then, QR access is not location-restricted."}
+        </p>
+        {(latitude || longitude) && (
+          <button
+            type="button"
+            className="mt-4 text-sm font-semibold text-red-700 hover:underline"
+            onClick={() => {
+              setLatitude("");
+              setLongitude("");
+              setRestaurant((current) => current ? { ...current, qrLocation: null } : current);
+              setSaved(false);
+            }}
+          >
+            Clear QR location
+          </button>
+        )}
       </Card>
 
       <Card>

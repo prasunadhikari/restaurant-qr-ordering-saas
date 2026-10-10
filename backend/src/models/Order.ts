@@ -13,6 +13,7 @@ export type OrderStatus =
   | "cancelled";
 
 export type OrderPaymentMethod = "cash" | "esewa" | "khalti" | "bank_qr";
+export type OrderFulfillmentType = "dine_in" | "takeaway";
 export type OrderPaymentStatus =
   | "unpaid"
   | "pending"
@@ -27,6 +28,7 @@ export interface IOrder extends Document {
   orderNumber: string;
   trackingToken: string;
   status: OrderStatus;
+  fulfillmentType: OrderFulfillmentType;
   paymentMethod?: OrderPaymentMethod;
   paymentStatus: OrderPaymentStatus;
   declineReason?: string;
@@ -80,6 +82,12 @@ const orderSchema = new Schema<IOrder>(
       ],
       default: "pending",
       index: true,
+    },
+    fulfillmentType: {
+      type: String,
+      enum: ["dine_in", "takeaway"],
+      default: "dine_in",
+      required: true,
     },
     paymentMethod: {
       type: String,

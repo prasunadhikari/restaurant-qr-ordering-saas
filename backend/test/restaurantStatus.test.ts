@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  areValidCoordinates,
+  distanceBetweenCoordinates,
   getRestaurantDayRange,
   isRestaurantOpen,
+  isWithinCoordinatesRadius,
 } from "../src/utils/restaurantStatus.js";
 
 const activeRestaurant = {
@@ -87,4 +90,17 @@ test("payment day boundaries follow Nepal local time", () => {
 test("rejects invalid payment dates", () => {
   assert.equal(getRestaurantDayRange("2026-02-30"), null);
   assert.equal(getRestaurantDayRange("10-10-2026"), null);
+});
+
+test("validates coordinates and enforces the 100 meter QR access radius", () => {
+  const restaurant = { latitude: 27.7172, longitude: 85.324 };
+  const nearby = { latitude: 27.7175, longitude: 85.324 };
+  const farAway = { latitude: 27.72, longitude: 85.324 };
+
+  assert.equal(areValidCoordinates(restaurant), true);
+  assert.equal(areValidCoordinates({ latitude: 91, longitude: 0 }), false);
+  assert.equal(areValidCoordinates({ latitude: 0, longitude: Number.NaN }), false);
+  assert.ok(distanceBetweenCoordinates(restaurant, nearby) < 100);
+  assert.equal(isWithinCoordinatesRadius(nearby, restaurant), true);
+  assert.equal(isWithinCoordinatesRadius(farAway, restaurant), false);
 });

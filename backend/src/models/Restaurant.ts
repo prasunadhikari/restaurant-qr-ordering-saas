@@ -9,6 +9,10 @@ export interface IRestaurant extends Document {
   address?: string;
   restaurantType?: string;
   acceptingOrders: boolean;
+  qrLocation?: {
+    latitude: number;
+    longitude: number;
+  };
   paymentSettings: {
     cashEnabled: boolean;
     esewaEnabled: boolean;
@@ -83,6 +87,17 @@ const restaurantSchema = new Schema<IRestaurant>(
     acceptingOrders: {
       type: Boolean,
       default: true,
+    },
+
+    qrLocation: {
+      type: new Schema(
+        {
+          latitude: { type: Number, required: true, min: -90, max: 90 },
+          longitude: { type: Number, required: true, min: -180, max: 180 },
+        },
+        { _id: false },
+      ),
+      default: undefined,
     },
 
     paymentSettings: {

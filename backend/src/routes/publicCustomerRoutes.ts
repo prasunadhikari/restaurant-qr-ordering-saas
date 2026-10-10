@@ -2,6 +2,8 @@ import { Router } from "express";
 
 import {
   createCustomerOrder,
+  checkPublicQrLocation,
+  getPublicQrLocation,
   getCustomerOrder,
   getOrCreatePublicTableSession,
   getPublicRestaurantMenu,
@@ -11,6 +13,14 @@ import { createPublicStaffCall } from "../controllers/staffCallController.js";
 
 const router = Router();
 
+router.get(
+  "/restaurants/:restaurantSlug/t/:tableNumber/location",
+  getPublicQrLocation,
+);
+router.post(
+  "/restaurants/:restaurantSlug/t/:tableNumber/location-check",
+  checkPublicQrLocation,
+);
 router.get(
   "/restaurants/:restaurantSlug/t/:tableNumber/menu",
   getPublicRestaurantMenu,

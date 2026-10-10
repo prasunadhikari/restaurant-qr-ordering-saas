@@ -17,6 +17,7 @@ export interface Restaurant {
   restaurantType?: string;
   acceptingOrders?: boolean;
   isOpen?: boolean;
+  qrLocation?: { latitude: number; longitude: number } | null;
   paymentSettings?: {
     cashEnabled: boolean;
     esewaEnabled: boolean;

@@ -173,6 +173,9 @@ function OrderConfirmation({
                 <p className="mt-1 font-serif text-2xl font-bold tracking-wide text-[#173b32]">
                   {order.orderNumber}
                 </p>
+                <p className="mt-1 text-xs font-semibold text-[#315b40]">
+                  {order.fulfillmentType === "takeaway" ? "Take away" : "Dine in"}
+                </p>
                 <p className="mt-2 text-sm text-slate-500">
                   {itemCount} {itemCount === 1 ? "item" : "items"} in this order
                 </p>

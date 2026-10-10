@@ -61,6 +61,7 @@ export interface RestaurantOrder {
   _id: string;
   orderNumber: string;
   status: OrderStatus;
+  fulfillmentType?: "dine_in" | "takeaway";
   total: number;
   createdAt: string;
   specialInstructions?: string;

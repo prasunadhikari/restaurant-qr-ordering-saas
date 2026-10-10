@@ -25,6 +25,7 @@ export interface StaffOrder {
   _id: string;
   orderNumber: string;
   status: StaffOrderStatus;
+  fulfillmentType?: "dine_in" | "takeaway";
   tableNumber: string;
   items: Array<{
     name: string;

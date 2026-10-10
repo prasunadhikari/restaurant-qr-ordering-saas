@@ -48,6 +48,13 @@ function StaffOrderCard({
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyle[order.status]}`}>
               {statusLabels[order.status]}
             </span>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              order.fulfillmentType === "takeaway"
+                ? "bg-amber-100 text-amber-900"
+                : "bg-emerald-50 text-emerald-800"
+            }`}>
+              {order.fulfillmentType === "takeaway" ? "Take away" : "Dine in"}
+            </span>
             {order.status === "pending" && (
               <span className="rounded-full bg-red-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
                 New order

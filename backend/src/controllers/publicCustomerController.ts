@@ -8,7 +8,13 @@ import Order, { type OrderPaymentMethod } from "../models/Order.js";
 import Restaurant from "../models/Restaurant.js";
 import RestaurantTable from "../models/RestaurantTable.js";
 import TableSession from "../models/TableSession.js";
-import { isRestaurantOpen } from "../utils/restaurantStatus.js";
+import {
+  areValidCoordinates,
+  isRestaurantOpen,
+  isWithinCoordinatesRadius,
+  QR_LOCATION_RADIUS_METERS,
+  type Coordinates,
+} from "../utils/restaurantStatus.js";
 import {
   addBillPaymentActivity,
   allSessionOrdersServed,
@@ -117,6 +123,84 @@ const getOrCreateActiveTableSession = async (
   }
 };
 
+const isQrLocationConfigured = (restaurant: {
+  qrLocation?: Coordinates;
+}): restaurant is { qrLocation: Coordinates } =>
+  areValidCoordinates(restaurant.qrLocation);
+
+const verifyQrLocation = (
+  restaurant: { qrLocation?: Coordinates },
+  location: unknown,
+): boolean =>
+  !isQrLocationConfigured(restaurant) ||
+  (areValidCoordinates(location) &&
+    isWithinCoordinatesRadius(location, restaurant.qrLocation));
+
+const requestCoordinates = (latitude: unknown, longitude: unknown): Coordinates | null => {
+  if (
+    typeof latitude !== "string" ||
+    typeof longitude !== "string" ||
+    latitude.trim() === "" ||
+    longitude.trim() === ""
+  ) return null;
+  const parsed = { latitude: Number(latitude), longitude: Number(longitude) };
+  return areValidCoordinates(parsed) ? parsed : null;
+};
+
+export const getPublicQrLocation = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { restaurant, table } = await getPublicContext(
+      String(req.params.restaurantSlug),
+      String(req.params.tableNumber),
+    );
+    if (!restaurant || !table) {
+      res.status(404).json({ success: false, message: "Restaurant or table not found" });
+      return;
+    }
+    res.json({
+      success: true,
+      data: {
+        enabled: isQrLocationConfigured(restaurant),
+        radiusMeters: QR_LOCATION_RADIUS_METERS,
+      },
+    });
+  } catch (error) {
+    handleError(error, res, "Failed to load restaurant location settings");
+  }
+};
+
+export const checkPublicQrLocation = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { restaurant, table } = await getPublicContext(
+      String(req.params.restaurantSlug),
+      String(req.params.tableNumber),
+    );
+    if (!restaurant || !table) {
+      res.status(404).json({ success: false, message: "Restaurant or table not found" });
+      return;
+    }
+    const allowed = verifyQrLocation(restaurant, req.body?.location);
+    res.json({
+      success: true,
+      data: {
+        allowed,
+        radiusMeters: QR_LOCATION_RADIUS_METERS,
+        message: allowed
+          ? ""
+          : "You are too far away from this restaurant or cafe. Please scan the QR code while you are at the venue.",
+      },
+    });
+  } catch (error) {
+    handleError(error, res, "Failed to verify customer location");
+  }
+};
+
 export const getOrCreatePublicTableSession = async (
   req: Request,
   res: Response,
@@ -128,6 +212,17 @@ export const getOrCreatePublicTableSession = async (
     );
     if (!restaurant || !table) {
       res.status(404).json({ success: false, message: "Restaurant or table not found" });
+      return;
+    }
+
+    if (
+      req.method === "POST" &&
+      !verifyQrLocation(restaurant, req.body?.location)
+    ) {
+      res.status(403).json({
+        success: false,
+        message: "You are too far away from this restaurant or cafe to start a table session.",
+      });
       return;
     }
 
@@ -170,6 +265,7 @@ export const getOrCreatePublicTableSession = async (
           trackingToken: order.trackingToken,
           tableSessionId: order.tableSessionId?.toString(),
           status: order.status,
+          fulfillmentType: order.fulfillmentType ?? "dine_in",
           declineReason: order.declineReason,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus ?? "unpaid",
@@ -201,6 +297,14 @@ export const getPublicRestaurantMenu = async (
       res.status(404).json({
         success: false,
         message: "Restaurant or table not found",
+      });
+      return;
+    }
+    const location = requestCoordinates(req.query.latitude, req.query.longitude);
+    if (!verifyQrLocation(restaurant, location)) {
+      res.status(403).json({
+        success: false,
+        message: "You are too far away from this restaurant or cafe. Please scan the QR code while you are at the venue.",
       });
       return;
     }
@@ -269,12 +373,16 @@ export const createCustomerOrder = async (
   const { restaurantSlug, tableNumber } = req.params;
   const body = req.body ?? {};
   const requestedItems: unknown = body.items;
+  const fulfillmentType = body.fulfillmentType === undefined
+    ? "dine_in"
+    : body.fulfillmentType;
   const orderNote =
     typeof body.specialInstructions === "string"
       ? body.specialInstructions.trim()
       : "";
 
   if (
+    (fulfillmentType !== "dine_in" && fulfillmentType !== "takeaway") ||
     !Array.isArray(requestedItems) ||
     requestedItems.length === 0 ||
     requestedItems.length > 50 ||
@@ -333,6 +441,13 @@ export const createCustomerOrder = async (
       });
       return;
     }
+    if (!verifyQrLocation(restaurant, body.location)) {
+      res.status(403).json({
+        success: false,
+        message: "You are too far away from this restaurant or cafe to place an order.",
+      });
+      return;
+    }
     if (!isRestaurantOpen(restaurant)) {
       res.status(409).json({
         success: false,
@@ -384,6 +499,7 @@ export const createCustomerOrder = async (
       orderNumber: randomBytes(4).toString("hex").toUpperCase(),
       trackingToken: randomUUID(),
       status: "pending",
+      fulfillmentType,
       paymentStatus: "unpaid",
       items: orderItems,
       specialInstructions: orderNote,
@@ -400,6 +516,7 @@ export const createCustomerOrder = async (
           orderNumber: order.orderNumber,
           trackingToken: order.trackingToken,
           status: order.status,
+          fulfillmentType: order.fulfillmentType ?? "dine_in",
           declineReason: order.declineReason,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
@@ -447,6 +564,7 @@ export const getCustomerOrder = async (
           trackingToken: order.trackingToken,
           tableSessionId: order.tableSessionId?.toString(),
           status: order.status,
+          fulfillmentType: order.fulfillmentType ?? "dine_in",
           declineReason: order.declineReason,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus ?? "unpaid",

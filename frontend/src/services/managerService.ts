@@ -9,6 +9,7 @@ export interface ManagerOrder {
   _id: string;
   orderNumber: string;
   status: string;
+  fulfillmentType?: "dine_in" | "takeaway";
   declineReason?: string;
   paymentMethod?: "cash" | "esewa" | "khalti" | "bank_qr";
   paymentStatus?: "unpaid" | "pending" | "pending_verification" | "paid" | "rejected";

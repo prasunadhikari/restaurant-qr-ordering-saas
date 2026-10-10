@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { CartItem } from "./Cart";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
+import type { CustomerFulfillmentType } from "../../services/customerService";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface CheckoutModalProps {
   items: CartItem[];
   tableNumber: string;
   restaurantOpen: boolean;
+  fulfillmentType: CustomerFulfillmentType;
+  onFulfillmentTypeChange: (type: CustomerFulfillmentType) => void;
   submitting: boolean;
   error: string;
   onPlaceOrder: (orderNote: string) => void;
@@ -21,6 +24,8 @@ function CheckoutModal({
   items,
   tableNumber,
   restaurantOpen,
+  fulfillmentType,
+  onFulfillmentTypeChange,
   submitting,
   error,
   onPlaceOrder,
@@ -65,21 +70,38 @@ function CheckoutModal({
     >
       <div className="max-h-[calc(100dvh-9rem)] space-y-5 overflow-y-auto pr-1">
         {/* Table information */}
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#dce6dd] bg-[#f1f5ef] p-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#69836e]">
-              Dine-in order
-            </p>
-
-            <p className="mt-1 font-serif text-lg font-semibold text-[#173b32]">
-              Table {tableNumber}
-            </p>
+        <fieldset>
+          <legend className="mb-2 text-sm font-semibold text-slate-800">How would you like your order?</legend>
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              { type: "dine_in", title: "Dine in", description: `Enjoy at Table ${tableNumber}`, icon: "🪑" },
+              { type: "takeaway", title: "Take away", description: "Pack to take with you", icon: "🥡" },
+            ] as const).map((option) => (
+              <label
+                key={option.type}
+                className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                  fulfillmentType === option.type
+                    ? "border-[#173b32] bg-[#f1f5ef] ring-2 ring-[#173b32]/10"
+                    : "border-[#e9e4d9] bg-white hover:border-[#b6c8bb]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="fulfillment-type"
+                  value={option.type}
+                  checked={fulfillmentType === option.type}
+                  onChange={() => onFulfillmentTypeChange(option.type)}
+                  className="mt-1 accent-[#173b32]"
+                />
+                <span>
+                  <span className="block text-lg" aria-hidden="true">{option.icon}</span>
+                  <span className="mt-1 block text-sm font-bold text-[#173b32]">{option.title}</span>
+                  <span className="mt-1 block text-xs leading-4 text-slate-500">{option.description}</span>
+                </span>
+              </label>
+            ))}
           </div>
-
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-xl shadow-sm">
-            🪑
-          </div>
-        </div>
+        </fieldset>
 
         {/* Order items */}
         <div>

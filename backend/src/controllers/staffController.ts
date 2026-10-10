@@ -47,6 +47,7 @@ const orderResponse = async (order: {
   tableId: mongoose.Types.ObjectId;
   orderNumber: string;
   status: OrderStatus;
+  fulfillmentType?: "dine_in" | "takeaway";
   items: Array<{
     name: string;
     quantity: number;
@@ -65,6 +66,7 @@ const orderResponse = async (order: {
     _id: order._id,
     orderNumber: order.orderNumber,
     status: normalizeStatus(order.status),
+    fulfillmentType: order.fulfillmentType ?? "dine_in",
     tableNumber: table?.tableNumber ?? "—",
     items: order.items,
     specialInstructions: order.specialInstructions ?? "",

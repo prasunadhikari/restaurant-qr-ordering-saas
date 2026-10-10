@@ -47,6 +47,19 @@ export interface PublicMenu {
   items: PublicMenuItem[];
 }
 
+export interface CustomerCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export type CustomerFulfillmentType = "dine_in" | "takeaway";
+export type CustomerStaffCallType = "assistance";
+
+export interface PublicQrLocation {
+  enabled: boolean;
+  radiusMeters: number;
+}
+
 export type CustomerOrderStatus =
   | "pending"
   | "accepted"
@@ -68,6 +81,7 @@ export interface CustomerOrder {
   trackingToken?: string;
   tableSessionId?: string;
   status: CustomerOrderStatus;
+  fulfillmentType?: CustomerFulfillmentType;
   declineReason?: string;
   paymentMethod?: CustomerPaymentMethod;
   paymentStatus?: CustomerPaymentStatus;
@@ -110,8 +124,6 @@ export interface CustomerTableBill {
   canPay: boolean;
 }
 
-export type CustomerStaffCallType = "assistance";
-
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -124,16 +136,44 @@ const restaurantTableEndpoint = (
 ) =>
   `/public/restaurants/${encodeURIComponent(restaurantSlug)}/t/${encodeURIComponent(tableNumber)}`;
 
+export const getCustomerQrLocation = async (
+  restaurantSlug: string,
+  tableNumber: string,
+): Promise<PublicQrLocation> =>
+  (
+    await apiRequest<ApiResponse<PublicQrLocation>>(
+      `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/location`,
+    )
+  ).data;
+
+export const verifyCustomerQrLocation = async (
+  restaurantSlug: string,
+  tableNumber: string,
+  location: CustomerCoordinates,
+): Promise<{ allowed: boolean; radiusMeters: number; message: string }> =>
+  (
+    await apiRequest<ApiResponse<{ allowed: boolean; radiusMeters: number; message: string }>>(
+      `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/location-check`,
+      { method: "POST", body: JSON.stringify({ location }) },
+    )
+  ).data;
+
 const loadCustomerTableSession = async (
   restaurantSlug: string,
   tableNumber: string,
   method: "GET" | "POST",
+  location?: CustomerCoordinates,
 ): Promise<CustomerTableSession | null> => {
   const data = (
     await apiRequest<ApiResponse<{
       session: Omit<CustomerTableSession, "orders"> | null;
       orders: CustomerOrder[];
-    }>>(`${restaurantTableEndpoint(restaurantSlug, tableNumber)}/session`, { method })
+    }>>(`${restaurantTableEndpoint(restaurantSlug, tableNumber)}/session`, {
+      method,
+      ...(method === "POST" && location
+        ? { body: JSON.stringify({ location }) }
+        : {}),
+    })
   ).data;
   return data.session ? { ...data.session, orders: data.orders } : null;
 };
@@ -141,8 +181,9 @@ const loadCustomerTableSession = async (
 export const getOrCreateCustomerTableSession = (
   restaurantSlug: string,
   tableNumber: string,
+  location?: CustomerCoordinates,
 ): Promise<CustomerTableSession | null> =>
-  loadCustomerTableSession(restaurantSlug, tableNumber, "POST");
+  loadCustomerTableSession(restaurantSlug, tableNumber, "POST", location);
 
 export const getActiveCustomerTableSession = (
   restaurantSlug: string,
@@ -153,10 +194,14 @@ export const getActiveCustomerTableSession = (
 export const getPublicMenu = async (
   restaurantSlug: string,
   tableNumber: string,
+  location?: CustomerCoordinates,
 ): Promise<PublicMenu> => {
+  const query = location
+    ? `?latitude=${encodeURIComponent(String(location.latitude))}&longitude=${encodeURIComponent(String(location.longitude))}`
+    : "";
   const menu = (
     await apiRequest<ApiResponse<PublicMenu>>(
-      `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/menu`,
+      `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/menu${query}`,
     )
   ).data;
   return {
@@ -205,13 +250,15 @@ export const placeCustomerOrder = async (
     specialInstructions: string;
   }>,
   specialInstructions: string,
+  fulfillmentType: CustomerFulfillmentType,
+  location?: CustomerCoordinates,
 ): Promise<CustomerOrder> =>
   (
     await apiRequest<ApiResponse<{ order: CustomerOrder }>>(
       `${restaurantTableEndpoint(restaurantSlug, tableNumber)}/orders`,
       {
         method: "POST",
-        body: JSON.stringify({ items, specialInstructions }),
+        body: JSON.stringify({ items, specialInstructions, fulfillmentType, location }),
       },
     )
   ).data.order;

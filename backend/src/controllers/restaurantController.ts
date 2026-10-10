@@ -339,6 +339,7 @@ export const updateMyRestaurant = async (
       openingHours,
       acceptingOrders,
       paymentSettings,
+      qrLocation,
     } = req.body;
 
     if (name !== undefined) {
@@ -411,6 +412,34 @@ export const updateMyRestaurant = async (
 
     if (typeof acceptingOrders === "boolean") {
       restaurant.acceptingOrders = acceptingOrders;
+    }
+
+    if (qrLocation !== undefined) {
+      if (qrLocation === null) {
+        restaurant.qrLocation = undefined;
+      } else if (
+        typeof qrLocation !== "object" ||
+        qrLocation === null ||
+        typeof qrLocation.latitude !== "number" ||
+        !Number.isFinite(qrLocation.latitude) ||
+        qrLocation.latitude < -90 ||
+        qrLocation.latitude > 90 ||
+        typeof qrLocation.longitude !== "number" ||
+        !Number.isFinite(qrLocation.longitude) ||
+        qrLocation.longitude < -180 ||
+        qrLocation.longitude > 180
+      ) {
+        res.status(400).json({
+          success: false,
+          message: "Enter a valid restaurant latitude and longitude",
+        });
+        return;
+      } else {
+        restaurant.qrLocation = {
+          latitude: qrLocation.latitude,
+          longitude: qrLocation.longitude,
+        };
+      }
     }
 
     if (paymentSettings !== undefined) {

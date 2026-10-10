@@ -12,6 +12,7 @@ import RestaurantHeader from "../../components/customer/RestaurantHeader";
 import SearchBar from "../../components/customer/SearchBar";
 import type { CustomerOrder } from "../../services/customerService";
 import {
+  getCustomerQrLocation,
   getActiveCustomerTableSession,
   getCustomerOrder,
   getOrCreateCustomerTableSession,
@@ -19,12 +20,35 @@ import {
   placeCustomerOrder,
   updateCustomerOrderPayment,
   createCustomerStaffCall,
+  verifyCustomerQrLocation,
   type CustomerStaffCallType,
+  type CustomerCoordinates,
+  type CustomerFulfillmentType,
   type CustomerPaymentMethod,
   type CustomerTableSession,
   type PublicMenu,
 } from "../../services/customerService";
 import type { MenuCategory, MenuItem } from "../../types/menu";
+
+const currentBrowserLocation = (): Promise<{
+  location: CustomerCoordinates;
+  accuracy: number;
+}> => new Promise((resolve, reject) => {
+  if (!navigator.geolocation) {
+    reject(new Error("This browser cannot verify your location. Try a device with location services enabled."));
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => resolve({
+      location: { latitude: coords.latitude, longitude: coords.longitude },
+      accuracy: coords.accuracy,
+    }),
+    (cause) => reject(new Error(cause.code === cause.PERMISSION_DENIED
+      ? "Allow location access to open this QR menu."
+      : "Unable to verify your location. Turn on location services and try again.")),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+  );
+});
 
 function RestaurantMenuPage() {
   const { restaurantSlug = "", tableNumber = "" } = useParams<{
@@ -43,6 +67,15 @@ function RestaurantMenuPage() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [fulfillmentType, setFulfillmentType] = useState<CustomerFulfillmentType>("dine_in");
+  const [locationRetry, setLocationRetry] = useState(0);
+  const [locationBlocked, setLocationBlocked] = useState(false);
+  const [verifiedLocation, setVerifiedLocation] = useState<{
+    routeKey: string;
+    enabled: boolean;
+    allowed: boolean;
+    coordinates: CustomerCoordinates | null;
+  }>({ routeKey: "", enabled: false, allowed: false, coordinates: null });
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [orderError, setOrderError] = useState("");
@@ -68,37 +101,64 @@ function RestaurantMenuPage() {
 
   useEffect(() => {
     let active = true;
-    getPublicMenu(restaurantSlug, tableNumber)
-      .then((data) => {
-        if (active) {
-          setMenuState({
-            routeKey,
-            menu: data,
-            loading: false,
-            error: "",
-          });
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setMenuState({ routeKey, menu: null, loading: true, error: "" });
+      setLocationBlocked(false);
+    });
+    const loadPublicMenu = async () => {
+      try {
+        const locationSettings = await getCustomerQrLocation(restaurantSlug, tableNumber);
+        let coordinates: CustomerCoordinates | null = null;
+        if (locationSettings.enabled) {
+          setLocationBlocked(true);
+          const current = await currentBrowserLocation();
+          if (current.accuracy > locationSettings.radiusMeters) {
+            throw new Error("Your location could not be verified accurately. Turn on precise location and try again.");
+          }
+          const check = await verifyCustomerQrLocation(
+            restaurantSlug,
+            tableNumber,
+            current.location,
+          );
+          if (!check.allowed) throw new Error(check.message);
+          coordinates = current.location;
         }
-      })
-      .catch((error: unknown) => {
+        const data = await getPublicMenu(
+          restaurantSlug,
+          tableNumber,
+          coordinates ?? undefined,
+        );
         if (!active) return;
-        console.error("Failed to load public restaurant menu:", error);
+        setVerifiedLocation({
+          routeKey,
+          enabled: locationSettings.enabled,
+          allowed: true,
+          coordinates,
+        });
+        setLocationBlocked(false);
+        setMenuState({ routeKey, menu: data, loading: false, error: "" });
+      } catch (error: unknown) {
+        if (!active) return;
+        console.error("Failed to verify QR menu access or load the restaurant menu:", error);
         setMenuState({
           routeKey,
           menu: null,
           loading: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to load this menu.",
+          error: error instanceof Error ? error.message : "Unable to load this menu.",
         });
-      });
+      }
+    };
+    void loadPublicMenu();
     return () => {
       active = false;
     };
-  }, [restaurantSlug, tableNumber, routeKey]);
+  }, [restaurantSlug, tableNumber, routeKey, locationRetry]);
 
   useEffect(() => {
     if (menuState.routeKey !== routeKey || !menuState.menu) return;
+    const location = verifiedLocation.routeKey === routeKey ? verifiedLocation : null;
+    if (!location?.allowed) return;
 
     let active = true;
     let firstLoad = true;
@@ -108,7 +168,11 @@ function RestaurantMenuPage() {
       refreshInFlight = true;
       try {
         const session = firstLoad
-          ? await getOrCreateCustomerTableSession(restaurantSlug, tableNumber)
+          ? await getOrCreateCustomerTableSession(
+              restaurantSlug,
+              tableNumber,
+              location.coordinates ?? undefined,
+            )
           : await getActiveCustomerTableSession(restaurantSlug, tableNumber);
         firstLoad = false;
         if (!active) return;
@@ -153,7 +217,7 @@ function RestaurantMenuPage() {
       active = false;
       window.clearInterval(interval);
     };
-  }, [menuState.menu, menuState.routeKey, restaurantSlug, routeKey, tableNumber]);
+  }, [menuState.menu, menuState.routeKey, restaurantSlug, routeKey, tableNumber, verifiedLocation]);
 
   useEffect(() => {
     const trackingToken = lastOrder?.trackingToken;
@@ -299,6 +363,20 @@ function RestaurantMenuPage() {
     setSubmitting(true);
     setOrderError("");
     try {
+      let location = verifiedLocation.coordinates ?? undefined;
+      if (verifiedLocation.enabled) {
+        const current = await currentBrowserLocation();
+        if (current.accuracy > 100) {
+          throw new Error("Your location could not be verified accurately. Turn on precise location and try again.");
+        }
+        const check = await verifyCustomerQrLocation(
+          restaurant.slug,
+          table.tableNumber,
+          current.location,
+        );
+        if (!check.allowed) throw new Error(check.message);
+        location = current.location;
+      }
       const order = await placeCustomerOrder(
         restaurant.slug,
         table.tableNumber,
@@ -308,6 +386,8 @@ function RestaurantMenuPage() {
           specialInstructions: line.note ?? "",
         })),
         orderNote,
+        fulfillmentType,
+        location,
       );
       try {
         const refreshedSession = await getActiveCustomerTableSession(
@@ -348,6 +428,7 @@ function RestaurantMenuPage() {
       setIsCheckoutOpen(false);
       setIsOrderConfirmed(true);
       setCartItems([]);
+      setFulfillmentType("dine_in");
     } catch (error) {
       console.error("Failed to place customer order:", error);
       setOrderError(
@@ -418,6 +499,10 @@ function RestaurantMenuPage() {
     }
   };
 
+  const retryLocationVerification = () => {
+    setLocationRetry((current) => current + 1);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8f6f0] px-6">
@@ -438,11 +523,20 @@ function RestaurantMenuPage() {
             🍽️
           </div>
           <h1 className="mt-4 font-serif text-2xl font-semibold text-[#173b32]">
-            Menu unavailable
+            {locationBlocked ? "QR menu is for nearby customers" : "Menu unavailable"}
           </h1>
           <p role="alert" className="mt-2 text-sm leading-6 text-slate-500">
             {loadError || "This restaurant or table could not be found."}
           </p>
+          {locationBlocked && (
+            <button
+              type="button"
+              onClick={retryLocationVerification}
+              className="mt-5 min-h-11 rounded-xl bg-[#173b32] px-5 text-sm font-semibold text-white hover:bg-[#245747]"
+            >
+              Check my location again
+            </button>
+          )}
         </section>
       </main>
     );
@@ -478,7 +572,6 @@ function RestaurantMenuPage() {
       setIsOrderConfirmed(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-[#f8f6f0] pb-32">
       {activeSession && !isOrderConfirmed && (
@@ -534,6 +627,7 @@ function RestaurantMenuPage() {
                       <p className="text-sm font-semibold text-slate-900">Order #{order.orderNumber}</p>
                       <p className={`mt-0.5 text-xs capitalize ${cancelled ? "text-red-700" : "text-slate-500"}`}>
                         {order.status}{cancelled && order.declineReason ? ` · ${order.declineReason}` : ""}
+                        {` · ${order.fulfillmentType === "takeaway" ? "Take away" : "Dine in"}`}
                         {order.paymentStatus ? ` · Payment ${order.paymentStatus.replaceAll("_", " ")}` : ""}
                       </p>
                     </div>
@@ -695,6 +789,8 @@ function RestaurantMenuPage() {
         items={cartItems}
         tableNumber={table.tableNumber}
         restaurantOpen={restaurant.isOpen}
+        fulfillmentType={fulfillmentType}
+        onFulfillmentTypeChange={setFulfillmentType}
         submitting={submitting}
         error={orderError}
         onPlaceOrder={handlePlaceOrder}

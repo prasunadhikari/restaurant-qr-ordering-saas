@@ -1,5 +1,45 @@
 export const RESTAURANT_TIME_ZONE = "Asia/Kathmandu";
 const RESTAURANT_UTC_OFFSET_MINUTES = 5 * 60 + 45;
+export const QR_LOCATION_RADIUS_METERS = 100;
+
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export const areValidCoordinates = (value: unknown): value is Coordinates => {
+  if (typeof value !== "object" || value === null) return false;
+  const coordinates = value as Partial<Coordinates>;
+  return typeof coordinates.latitude === "number" &&
+    Number.isFinite(coordinates.latitude) &&
+    coordinates.latitude >= -90 &&
+    coordinates.latitude <= 90 &&
+    typeof coordinates.longitude === "number" &&
+    Number.isFinite(coordinates.longitude) &&
+    coordinates.longitude >= -180 &&
+    coordinates.longitude <= 180;
+};
+
+export const distanceBetweenCoordinates = (
+  first: Coordinates,
+  second: Coordinates,
+): number => {
+  const radians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDifference = radians(second.latitude - first.latitude);
+  const longitudeDifference = radians(second.longitude - first.longitude);
+  const haversine =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(radians(first.latitude)) *
+      Math.cos(radians(second.latitude)) *
+      Math.sin(longitudeDifference / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
+
+export const isWithinCoordinatesRadius = (
+  actual: Coordinates,
+  expected: Coordinates,
+  radiusMeters = QR_LOCATION_RADIUS_METERS,
+): boolean => distanceBetweenCoordinates(actual, expected) <= radiusMeters;
 
 export const getRestaurantDayRange = (
   date?: string,
