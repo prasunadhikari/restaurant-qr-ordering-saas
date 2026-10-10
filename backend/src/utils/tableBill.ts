@@ -115,6 +115,16 @@ export const addBillPaymentActivity = (
 ): void => {
   if (!bill.paymentMethod) return;
   const history = bill.paymentHistory ?? (bill.paymentHistory = []);
+  const existing = [...history].reverse().find((activity) =>
+    activity.paymentMethod === bill.paymentMethod &&
+    activity.paymentStatus === "pending",
+  );
+  if (existing) {
+    existing.paymentAmount = bill.paymentAmount;
+    existing.updatedAt = at;
+    if (paymentDetails) existing.paymentDetails = paymentDetails;
+    return;
+  }
   history.push({
     paymentMethod: bill.paymentMethod,
     paymentAmount: bill.paymentAmount,

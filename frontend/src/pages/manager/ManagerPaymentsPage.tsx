@@ -46,7 +46,7 @@ function ManagerPaymentsPage() {
       setLoading(false);
     }
   }, [date]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   const act = async (payment: ManagerPayment, action: "confirm" | "reject") => {
     setBusy(payment._id);
@@ -64,10 +64,9 @@ function ManagerPaymentsPage() {
 
   const paid = payments.filter((payment) => payment.paymentStatus === "paid");
   const totalPaid = paid.reduce((sum, payment) => sum + payment.paymentAmount, 0);
-  const cashPaid = paid
-    .filter((payment) => payment.paymentMethod === "cash")
-    .reduce((sum, payment) => sum + payment.paymentAmount, 0);
-  const onlinePaid = totalPaid - cashPaid;
+  const paidByMethod = (method: NonNullable<ManagerPayment["paymentMethod"]>) =>
+    paid.filter((payment) => payment.paymentMethod === method)
+      .reduce((sum, payment) => sum + payment.paymentAmount, 0);
   const selectedDay = new Date(`${date}T12:00:00+05:45`);
 
   return (
@@ -87,10 +86,17 @@ function ManagerPaymentsPage() {
         </div>
       </header>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Collected {selectedDay.toLocaleDateString("en-NP", { timeZone })}</p><p className="mt-2 text-2xl font-bold">NPR {totalPaid.toLocaleString()}</p><p className="mt-1 text-xs text-slate-500">{paid.length} confirmed payments</p></Card>
-        <Card><div className="flex items-center gap-2 text-slate-500"><Banknote size={16} /><p className="text-xs font-semibold uppercase tracking-wide">Cash</p></div><p className="mt-2 text-2xl font-bold">NPR {cashPaid.toLocaleString()}</p></Card>
-        <Card><div className="flex items-center gap-2 text-slate-500"><CreditCard size={16} /><p className="text-xs font-semibold uppercase tracking-wide">Online</p></div><p className="mt-2 text-2xl font-bold">NPR {onlinePaid.toLocaleString()}</p></Card>
+        {(["cash", "esewa", "khalti", "bank_qr"] as const).map((method) => (
+          <Card key={method}>
+            <div className="flex items-center gap-2 text-slate-500">
+              {method === "cash" ? <Banknote size={16} /> : <CreditCard size={16} />}
+              <p className="text-xs font-semibold uppercase tracking-wide">{paymentMethodLabel[method]}</p>
+            </div>
+            <p className="mt-2 text-2xl font-bold">NPR {paidByMethod(method).toLocaleString()}</p>
+          </Card>
+        ))}
       </div>
       {loading ? <Card><p className="text-sm text-slate-500">Loading payments…</p></Card> : payments.length === 0 ? (
         <Card className="py-12 text-center"><h2 className="font-semibold">No payment activity for this day</h2><p className="mt-1 text-sm text-slate-500">Payment requests and completed collections will appear here.</p></Card>
@@ -103,7 +109,7 @@ function ManagerPaymentsPage() {
                 {payments.map((payment) => {
                   const status = payment.paymentStatus ?? "unpaid";
                   const method = payment.paymentMethod;
-                  const activityTime = status === "paid" || status === "rejected"
+                  const activityTime = status === "paid" || status === "rejected" || status === "pending_verification"
                     ? payment.updatedAt
                     : payment.createdAt;
                   const timeLabel = status === "paid"

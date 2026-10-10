@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import mongoose from "mongoose";
 
-import { allSessionOrdersServed, buildTableSessionBill } from "../src/utils/tableBill.js";
+import {
+  addBillPaymentActivity,
+  allSessionOrdersServed,
+  buildTableSessionBill,
+  updateCurrentPaymentActivity,
+} from "../src/utils/tableBill.js";
 import { canClearTableSession } from "../src/utils/tableBill.js";
 import TableSession from "../src/models/TableSession.js";
 
@@ -57,6 +62,35 @@ test("payment state remains when the order set is unchanged", () => {
   assert.equal(refreshed?.paymentAmount, 100);
   assert.equal(refreshed?.paymentMethod, "cash");
   assert.equal(refreshed?.paymentStatus, "pending");
+});
+
+test("keeps payment attempts and records method-specific confirmation time", () => {
+  const bill = buildTableSessionBill([
+    order("A1", "served", [{ name: "Momo", quantity: 1, unitPrice: 100 }]),
+  ]);
+  assert.ok(bill);
+  bill.paymentMethod = "bank_qr";
+  bill.paymentAmount = 100;
+  bill.paymentStatus = "pending";
+  const submittedAt = new Date("2026-10-10T05:00:00.000Z");
+  const confirmedAt = new Date("2026-10-10T05:05:00.000Z");
+
+  addBillPaymentActivity(bill, submittedAt, {
+    bankName: "Example Bank",
+    accountName: "Aagan",
+    accountNumber: "123456",
+  });
+  bill.paymentStatus = "pending_verification";
+  updateCurrentPaymentActivity(bill, "pending_verification", submittedAt, 100);
+  updateCurrentPaymentActivity(bill, "paid", confirmedAt, 100);
+
+  assert.equal(bill.paymentHistory?.length, 1);
+  assert.equal(bill.paymentHistory?.[0].paymentMethod, "bank_qr");
+  assert.equal(bill.paymentHistory?.[0].paymentStatus, "paid");
+  assert.equal(bill.paymentHistory?.[0].paymentAmount, 100);
+  assert.equal(bill.paymentHistory?.[0].createdAt, submittedAt);
+  assert.equal(bill.paymentHistory?.[0].updatedAt, confirmedAt);
+  assert.equal(bill.paymentHistory?.[0].paymentDetails?.bankName, "Example Bank");
 });
 
 test("only served or cancelled orders permit payment and table clearance", () => {

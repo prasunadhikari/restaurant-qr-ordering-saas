@@ -811,11 +811,13 @@ export const getManagerPayments = async (
         },
       ],
     }).sort({ updatedAt: -1 });
-    const payments = (await Promise.all(sessions.map(async (session) => {
-      const table = await RestaurantTable.findOne({
-        _id: session.tableId,
-        restaurantId,
-      }).select("tableNumber");
+    const tables = await RestaurantTable.find({
+      _id: { $in: sessions.map((session) => session.tableId) },
+      restaurantId,
+    }).select("tableNumber");
+    const tableNumbers = new Map(tables.map((table) => [table._id.toString(), table.tableNumber]));
+    const payments = sessions.flatMap((session) => {
+      const tableNumber = tableNumbers.get(session.tableId.toString()) ?? session.tableNumber;
       const bill = session.bill;
       if (!bill) return [];
       const activities = bill.paymentHistory ?? [];
@@ -823,58 +825,63 @@ export const getManagerPayments = async (
         ? activities
         : bill.paymentMethod && bill.paymentStatus !== "unpaid"
           ? [{
+              _id: undefined,
               paymentMethod: bill.paymentMethod,
               paymentAmount: bill.paymentAmount || bill.paidAmount,
               paymentStatus: bill.paymentStatus,
-              createdAt: session.startedAt,
-              updatedAt: session.updatedAt,
+              paymentDetails: undefined,
+              createdAt: undefined,
+              updatedAt: undefined,
             }]
           : [];
       return entries.flatMap((activity, index) => {
-        const createdAt = new Date(activity.createdAt);
-        const updatedAt = new Date(activity.updatedAt);
-        const isInSelectedDay =
-          (createdAt >= dayRange.start && createdAt < dayRange.end) ||
-          (updatedAt >= dayRange.start && updatedAt < dayRange.end);
-        const isCurrentReview = session.status === "active" &&
-          bill.paymentMethod === activity.paymentMethod &&
-          bill.paymentStatus === activity.paymentStatus &&
-          ["pending", "pending_verification"].includes(activity.paymentStatus);
-        if (!isInSelectedDay && !isCurrentReview) return [];
+        const createdAt = activity.createdAt ? new Date(activity.createdAt) : null;
+        const updatedAt = activity.updatedAt ? new Date(activity.updatedAt) : null;
+        const activityAt = ["paid", "rejected", "pending_verification"].includes(activity.paymentStatus)
+          ? updatedAt
+          : createdAt;
+        const isInSelectedDay = activityAt !== null &&
+          activityAt >= dayRange.start &&
+          activityAt < dayRange.end;
         const isCurrent = session.status === "active" &&
           bill.paymentMethod === activity.paymentMethod &&
           bill.paymentStatus === activity.paymentStatus;
+        const isCurrentReview = isCurrent &&
+          ["pending", "pending_verification"].includes(activity.paymentStatus);
+        if (
+          (!isInSelectedDay && !isCurrentReview) ||
+          (activity.paymentStatus === "pending" && !isCurrent)
+        ) return [];
         return [{
           _id: activity._id?.toString() ?? `${session._id}-${index}`,
           tableSessionId: session._id,
-          orderNumber: `Table ${table?.tableNumber ?? session.tableNumber}`,
-          tableId: { _id: session.tableId, tableNumber: table?.tableNumber ?? session.tableNumber },
+          orderNumber: `Table ${tableNumber}`,
+          tableId: { _id: session.tableId, tableNumber },
           total: bill.total,
           paidAmount: bill.paidAmount,
           paymentAmount: activity.paymentAmount,
           paymentMethod: activity.paymentMethod,
           paymentStatus: activity.paymentStatus,
-          paymentDetails: activity.paymentDetails,
-          createdAt: activity.createdAt,
-          updatedAt: activity.updatedAt,
+          paymentDetails: activity.paymentDetails ?? (activity.paymentMethod === "bank_qr"
+            ? {
+                bankName: restaurant?.paymentSettings?.bankName ?? "",
+                accountName: restaurant?.paymentSettings?.bankAccountName ?? "",
+                accountNumber: restaurant?.paymentSettings?.bankAccountNumber ?? "",
+              }
+            : undefined),
+          createdAt: activity.createdAt ?? null,
+          updatedAt: activity.updatedAt ?? null,
           canConfirm: isCurrent && ["pending", "pending_verification"].includes(activity.paymentStatus),
           canReject: isCurrent && activity.paymentStatus === "pending_verification" && activity.paymentMethod !== "cash",
         }];
       });
-    }))).flat().sort((left, right) =>
-      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+    }).sort((left, right) =>
+      new Date(right.updatedAt ?? right.createdAt ?? 0).getTime() -
+      new Date(left.updatedAt ?? left.createdAt ?? 0).getTime(),
     );
     res.json({
       success: true,
-      data: {
-        date: dayRange.date,
-        bankDetails: {
-          bankName: restaurant?.paymentSettings?.bankName ?? "",
-          accountName: restaurant?.paymentSettings?.bankAccountName ?? "",
-          accountNumber: restaurant?.paymentSettings?.bankAccountNumber ?? "",
-        },
-        payments,
-      },
+      data: { date: dayRange.date, payments },
     });
   } catch (error) {
     errorResponse(error, res, "Failed to load payments");

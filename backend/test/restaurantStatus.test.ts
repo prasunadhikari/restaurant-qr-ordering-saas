@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isRestaurantOpen } from "../src/utils/restaurantStatus.js";
+import {
+  getRestaurantDayRange,
+  isRestaurantOpen,
+} from "../src/utils/restaurantStatus.js";
 
 const activeRestaurant = {
   status: "active",
@@ -72,4 +75,16 @@ test("supports opening hours that cross midnight", () => {
     isRestaurantOpen(overnightRestaurant, new Date("2026-10-09T21:00:00.000Z")),
     false,
   );
+});
+
+test("payment day boundaries follow Nepal local time", () => {
+  const range = getRestaurantDayRange("2026-10-10");
+  assert.ok(range);
+  assert.equal(range.start.toISOString(), "2026-10-09T18:15:00.000Z");
+  assert.equal(range.end.toISOString(), "2026-10-10T18:15:00.000Z");
+});
+
+test("rejects invalid payment dates", () => {
+  assert.equal(getRestaurantDayRange("2026-02-30"), null);
+  assert.equal(getRestaurantDayRange("10-10-2026"), null);
 });

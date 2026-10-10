@@ -46,9 +46,9 @@ export interface ManagerBill {
   createdAt: string;
 }
 
-export interface ManagerPayment extends Omit<ManagerBill, "items" | "status"> {
-  paymentUpdatedAt?: string;
-  updatedAt: string;
+export interface ManagerPayment extends Omit<ManagerBill, "items" | "status" | "createdAt"> {
+  createdAt: string | null;
+  updatedAt: string | null;
   canConfirm: boolean;
   canReject: boolean;
   paymentDetails?: {
