@@ -48,7 +48,7 @@ export interface ManagerBill {
 
 export interface ManagerStaffCall {
   _id: string;
-  type: "assistance" | "bill";
+  type: "assistance";
   status: "pending" | "attended";
   createdAt: string;
   tableId: { _id: string; tableNumber: string } | string;

@@ -8,7 +8,6 @@ import Input from "../../components/ui/Input";
 import type { ManagerProfile, ManagerTable } from "../../services/managerService";
 import {
   createManagerTable,
-  closeManagerTableSession,
   deleteManagerTable,
   getManagerTables,
   updateManagerTable,
@@ -114,21 +113,6 @@ function ManagerTablesPage() {
     }
   };
 
-  const clearTable = async (table: ManagerTable) => {
-    if (!window.confirm(`Confirm Table ${table.tableNumber} is empty and cleaned? This closes its active customer session.`)) return;
-    setBusy(table._id);
-    setError("");
-    try {
-      await closeManagerTableSession(table._id);
-      await load();
-    } catch (cause) {
-      console.error("Failed to clear manager table:", cause);
-      setError(cause instanceof Error ? cause.message : "Unable to clear this table.");
-    } finally {
-      setBusy("");
-    }
-  };
-
   if (loading) return <Card><p className="text-sm text-slate-500">Loading tables…</p></Card>;
 
   const availableCount = tables.filter((table) => table.status === "available").length;
@@ -208,25 +192,6 @@ function ManagerTablesPage() {
                     </div>
                   )}
                   <p className="mt-1 text-xs text-slate-400">{active ? "Unique menu QR code ready" : "QR ordering disabled"}</p>
-                  {table.activeSessionId && (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="mt-3 w-full"
-                        disabled={busy === table._id || !table.canClear}
-                        onClick={() => void clearTable(table)}
-                        title={!table.canClear ? "Serve all orders and settle the bill before clearing this table" : undefined}
-                      >
-                        Table Empty / Cleaned
-                      </Button>
-                      {!table.canClear && (
-                        <p className="mt-2 text-xs leading-5 text-amber-800">
-                          Clear after all orders are served, cancelled-order payments are resolved, and the full bill is paid.
-                        </p>
-                      )}
-                    </>
-                  )}
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     <Button type="button" variant="outline" size="sm" disabled={busy === table._id} onClick={() => void editTable(table)}>Edit</Button>
                     <Button type="button" variant="outline" size="sm" disabled={busy === table._id} onClick={() => void toggleEnabled(table)}>{active ? "Disable QR" : "Enable QR"}</Button>

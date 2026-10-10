@@ -4,9 +4,12 @@ import { RefreshCw } from "lucide-react";
 import StaffOrderCard from "../../components/staff/StaffOrderCard";
 import {
   advanceStaffOrder,
+  closeStaffTableSession,
   getStaffOrders,
+  getStaffTables,
   type StaffOrder,
   type StaffOrderStatus,
+  type StaffTable,
 } from "../../services/staffService";
 import { nextOrderStatus } from "../../components/staff/staffOrderUtils";
 
@@ -21,6 +24,7 @@ const filters: Array<StaffOrderStatus | "all"> = [
 
 function StaffOrdersPage() {
   const [orders, setOrders] = useState<StaffOrder[]>([]);
+  const [tables, setTables] = useState<StaffTable[]>([]);
   const [filter, setFilter] = useState<StaffOrderStatus | "all">("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,7 +34,12 @@ function StaffOrdersPage() {
   const loadOrders = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
     try {
-      setOrders(await getStaffOrders());
+      const [latestOrders, latestTables] = await Promise.all([
+        getStaffOrders(),
+        getStaffTables(),
+      ]);
+      setOrders(latestOrders);
+      setTables(latestTables);
       setError("");
     } catch (cause) {
       console.error("Failed to load staff orders:", cause);
@@ -60,6 +69,7 @@ function StaffOrdersPage() {
       setOrders((current) =>
         current.map((entry) => entry._id === updated._id ? updated : entry),
       );
+      setTables(await getStaffTables());
     } catch (cause) {
       console.error("Failed to advance staff order:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to update order.");
@@ -72,6 +82,31 @@ function StaffOrdersPage() {
   const visible = orders.filter(
     (order) => filter === "all" || order.status === filter,
   );
+  const tableByNumber = new Map(tables.map((table) => [table.tableNumber, table]));
+  const tableEmptyOrderIds = new Set<string>();
+  const seenTables = new Set<string>();
+  for (const order of orders) {
+    const table = tableByNumber.get(order.tableNumber);
+    if (table?.activeSessionId && !seenTables.has(order.tableNumber) && order.status === "served") {
+      tableEmptyOrderIds.add(order._id);
+      seenTables.add(order.tableNumber);
+    }
+  }
+
+  const clearTable = async (table: StaffTable) => {
+    if (!window.confirm(`Confirm Table ${table.tableNumber} is empty and cleaned? This closes its active customer session.`)) return;
+    setUpdatingId(table._id);
+    setError("");
+    try {
+      await closeStaffTableSession(table._id);
+      await loadOrders(true);
+    } catch (cause) {
+      console.error("Failed to clear staff table:", cause);
+      setError(cause instanceof Error ? cause.message : "Unable to clear this table.");
+    } finally {
+      setUpdatingId("");
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -142,6 +177,15 @@ function StaffOrdersPage() {
               order={order}
               onAdvance={advanceOrder}
               updating={updatingId === order._id}
+              tableEmpty={tableEmptyOrderIds.has(order._id) ? (() => {
+                const table = tableByNumber.get(order.tableNumber);
+                if (!table?.activeSessionId) return undefined;
+                return {
+                  canClear: table.canClear,
+                  busy: updatingId === table._id,
+                  onClick: () => void clearTable(table),
+                };
+              })() : undefined}
             />
           ))}
         </div>

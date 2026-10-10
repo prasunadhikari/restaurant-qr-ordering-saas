@@ -7,6 +7,7 @@ import {
   CircleCheck,
   CircleX,
   CreditCard,
+  PhoneCall,
   QrCode,
 } from "lucide-react";
 import type {
@@ -143,13 +144,14 @@ function OrderConfirmation({
         role="dialog"
         aria-modal="true"
         aria-labelledby="order-confirmation-title"
-        className="w-full max-w-md overflow-hidden rounded-3xl border border-white/50 bg-[#fffefa] shadow-2xl"
+        className="w-full max-w-md overflow-hidden rounded-[1.75rem] border border-white/60 bg-[#fffefa] shadow-[0_28px_90px_rgba(9,31,25,0.35)]"
       >
         {(screen === "order" || isCancelled) && (
           <>
-            <div className={`relative overflow-hidden px-6 pb-8 pt-9 text-center text-white ${isCancelled ? "bg-red-900" : "bg-[#173b32]"}`}>
+            <div className={`relative overflow-hidden px-6 pb-8 pt-9 text-center text-white ${isCancelled ? "bg-gradient-to-br from-red-950 via-red-900 to-red-800" : "bg-gradient-to-br from-[#102c25] via-[#173b32] to-[#285944]"}`}>
               <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full border border-white/10" />
-              <div className="absolute -right-2 -top-4 h-28 w-28 rounded-full border border-white/10" />
+              <div className="absolute -right-2 -top-4 h-28 w-28 rounded-full border border-[#d8bb83]/25" />
+              <div className="absolute -bottom-20 -left-10 h-36 w-36 rounded-full bg-[#d8bb83]/10 blur-2xl" />
               <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-2xl shadow-inner">
                 {isCancelled ? <CircleX size={27} /> : "✓"}
               </div>
@@ -164,8 +166,8 @@ function OrderConfirmation({
             </div>
 
             <div className="space-y-5 p-6">
-              <div className="rounded-2xl border border-[#e9e4d9] bg-[#f8f6f0] p-4 text-center">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <div className="rounded-2xl border border-[#e9e4d9] bg-gradient-to-br from-[#fbf9f3] to-[#f2eee2] p-4 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9b7540]">
                   Order number
                 </p>
                 <p className="mt-1 font-serif text-2xl font-bold tracking-wide text-[#173b32]">
@@ -200,23 +202,19 @@ function OrderConfirmation({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                {(["assistance", "bill"] as const).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    disabled={staffCallBusy !== null || staffCallStatus[type] === "pending"}
-                    onClick={() => onCallStaff(type)}
-                    className="min-h-10 rounded-xl border border-[#d9e4dc] bg-white px-3 text-xs font-semibold text-[#173b32] hover:bg-[#f2f7f3] disabled:opacity-60"
-                  >
-                    {staffCallStatus[type] === "pending"
-                      ? type === "bill" ? "Bill requested" : "Staff notified"
-                      : staffCallBusy === type
-                        ? "Sending…"
-                        : type === "bill" ? "Request bill" : "Call staff"}
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                disabled={staffCallBusy !== null || staffCallStatus.assistance === "pending"}
+                onClick={() => onCallStaff("assistance")}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#d9e4dc] bg-white px-3 text-sm font-semibold text-[#173b32] transition hover:bg-[#f2f7f3] disabled:opacity-60"
+              >
+                <PhoneCall size={16} />
+                {staffCallStatus.assistance === "pending"
+                  ? "Staff notified"
+                  : staffCallBusy === "assistance"
+                    ? "Calling…"
+                    : "Call staff"}
+              </button>
               {staffCallError && (
                 <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
                   {staffCallError}

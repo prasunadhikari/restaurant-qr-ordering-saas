@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export type StaffCallStatus = "pending" | "attended";
-export type StaffCallType = "assistance" | "bill";
+export type StaffCallType = "assistance";
 
 export interface IStaffCallRequest extends Document {
   restaurantId: mongoose.Types.ObjectId;
@@ -20,7 +20,7 @@ const staffCallRequestSchema = new Schema<IStaffCallRequest>(
     restaurantId: { type: Schema.Types.ObjectId, ref: "Restaurant", required: true, index: true },
     tableId: { type: Schema.Types.ObjectId, ref: "RestaurantTable", required: true },
     tableSessionId: { type: Schema.Types.ObjectId, ref: "TableSession", required: true, index: true },
-    type: { type: String, enum: ["assistance", "bill"], required: true },
+    type: { type: String, enum: ["assistance"], required: true },
     status: { type: String, enum: ["pending", "attended"], default: "pending", index: true },
     attendedBy: { type: Schema.Types.ObjectId, ref: "User" },
     attendedAt: { type: Date },

@@ -33,15 +33,6 @@ function StaffDashboardPage() {
   const [newOrderCount, setNewOrderCount] = useState(0);
   const pendingOrderIds = useRef<Set<string> | null>(null);
 
-  const loadTables = useCallback(async () => {
-    try {
-      setTables(await getStaffTables());
-    } catch (cause) {
-      console.error("Failed to load staff tables:", cause);
-      setError(cause instanceof Error ? cause.message : "Unable to load tables.");
-    }
-  }, []);
-
   const loadStaffCalls = useCallback(async () => {
     try {
       setStaffCalls((await getStaffCalls()).filter((request) => request.status === "pending"));
@@ -54,7 +45,10 @@ function StaffDashboardPage() {
   const loadOrders = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
     try {
-      const latest = await getStaffOrders();
+      const [latest, latestTables] = await Promise.all([
+        getStaffOrders(),
+        getStaffTables(),
+      ]);
       const latestPendingIds = new Set(
         latest.filter((order) => order.status === "pending").map((order) => order._id),
       );
@@ -66,6 +60,7 @@ function StaffDashboardPage() {
       }
       pendingOrderIds.current = latestPendingIds;
       setOrders(latest);
+      setTables(latestTables);
       setError("");
     } catch (cause) {
       console.error("Failed to load staff orders:", cause);
@@ -78,20 +73,16 @@ function StaffDashboardPage() {
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void loadOrders(), 0);
-    const initialTableLoad = window.setTimeout(() => void loadTables(), 0);
     const initialCallsLoad = window.setTimeout(() => void loadStaffCalls(), 0);
     const timer = window.setInterval(() => void loadOrders(true), 12000);
-    const tableTimer = window.setInterval(() => void loadTables(), 12000);
     const callsTimer = window.setInterval(() => void loadStaffCalls(), 10000);
     return () => {
       window.clearTimeout(initialLoad);
-      window.clearTimeout(initialTableLoad);
       window.clearTimeout(initialCallsLoad);
       window.clearInterval(timer);
-      window.clearInterval(tableTimer);
       window.clearInterval(callsTimer);
     };
-  }, [loadOrders, loadTables, loadStaffCalls]);
+  }, [loadOrders, loadStaffCalls]);
 
   const advanceOrder = async (order: StaffOrder) => {
     const next: Partial<Record<StaffOrderStatus, StaffOrderStatus>> = {
@@ -121,13 +112,29 @@ function StaffDashboardPage() {
   const count = (status: StaffOrderStatus) =>
     orders.filter((order) => order.status === status).length;
 
+  const tableByNumber = new Map(tables.map((table) => [table.tableNumber, table]));
+  const tableEmptyOrderIds = new Set<string>();
+  const seenTables = new Set<string>();
+  for (const order of orders) {
+    const table = tableByNumber.get(order.tableNumber);
+    if (table?.activeSessionId && !seenTables.has(order.tableNumber) && order.status === "served") {
+      tableEmptyOrderIds.add(order._id);
+      seenTables.add(order.tableNumber);
+    }
+  }
+
   const clearTable = async (table: StaffTable) => {
     if (!window.confirm(`Confirm Table ${table.tableNumber} is empty and cleaned? This closes its active customer session.`)) return;
     setUpdatingId(table._id);
     setError("");
     try {
       await closeStaffTableSession(table._id);
-      await loadTables();
+      const [latestOrders, latestTables] = await Promise.all([
+        getStaffOrders(),
+        getStaffTables(),
+      ]);
+      setOrders(latestOrders);
+      setTables(latestTables);
     } catch (cause) {
       console.error("Failed to clear staff table:", cause);
       setError(cause instanceof Error ? cause.message : "Unable to clear this table.");
@@ -217,55 +224,11 @@ function StaffDashboardPage() {
           <ul className="mt-3 divide-y divide-amber-200">
             {staffCalls.map((request) => (
               <li key={request._id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div><p className="font-semibold text-amber-950">Table {typeof request.tableId === "string" ? "—" : request.tableId.tableNumber} · {request.type === "bill" ? "Bill requested" : "Assistance requested"}</p><p className="mt-1 text-xs text-amber-900/70">{new Date(request.createdAt).toLocaleTimeString()}</p></div>
+                <div><p className="font-semibold text-amber-950">Table {typeof request.tableId === "string" ? "—" : request.tableId.tableNumber} · Assistance requested</p><p className="mt-1 text-xs text-amber-900/70">{new Date(request.createdAt).toLocaleTimeString()}</p></div>
                 <button type="button" disabled={updatingId === request._id} onClick={() => void markStaffCallAttended(request)} className="min-h-9 rounded-lg border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-50">Mark attended</button>
               </li>
             ))}
           </ul>
-        )}
-      </section>
-
-      <section aria-labelledby="staff-tables-heading">
-        <div className="mb-4 flex items-center gap-2">
-          <h2 id="staff-tables-heading" className="text-lg font-bold">Occupied tables</h2>
-          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold">
-            {tables.filter((table) => table.activeSessionId).length}
-          </span>
-        </div>
-        {tables.filter((table) => table.activeSessionId).length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-sm text-slate-500">
-            No active table sessions.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {tables.filter((table) => table.activeSessionId).map((table) => (
-              <div key={table._id} className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-semibold">Table {table.tableNumber}</h3>
-                  <span className="text-xs text-slate-500">{table.servedOrderCount}/{table.activeOrderCount} served</span>
-                </div>
-                <p className="mt-2 text-sm text-slate-600">
-                  {table.billTotal > 0
-                    ? `Due NPR ${Math.max(0, table.billTotal - table.paidAmount).toLocaleString()} · ${table.paymentStatus.replaceAll("_", " ")}`
-                    : "No orders in this session yet"}
-                </p>
-                <button
-                  type="button"
-                  disabled={!table.canClear || updatingId === table._id}
-                  onClick={() => void clearTable(table)}
-                  className="mt-4 min-h-10 w-full rounded-lg bg-[#173b32] px-3 text-sm font-semibold text-white hover:bg-[#245747] disabled:cursor-not-allowed disabled:opacity-50"
-                  title={!table.canClear ? "Serve all orders and settle the bill before clearing this table" : undefined}
-                >
-                  Table Empty / Cleaned
-                </button>
-                {!table.canClear && (
-                  <p className="mt-2 text-xs leading-5 text-amber-800">
-                    Clear after all orders are served, cancelled-order payments are resolved, and the full bill is paid.
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
         )}
       </section>
 
@@ -306,6 +269,15 @@ function StaffDashboardPage() {
                         onAdvance={advanceOrder}
                         updating={updatingId === order._id}
                         compact
+                        tableEmpty={tableEmptyOrderIds.has(order._id) ? (() => {
+                          const table = tableByNumber.get(order.tableNumber);
+                          if (!table?.activeSessionId) return undefined;
+                          return {
+                            canClear: table.canClear,
+                            busy: updatingId === table._id,
+                            onClick: () => void clearTable(table),
+                          };
+                        })() : undefined}
                       />
                     ))}
                   </div>

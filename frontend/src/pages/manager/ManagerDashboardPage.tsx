@@ -96,7 +96,7 @@ function ManagerDashboardPage() {
           <ul className="mt-4 divide-y divide-slate-100">
             {staffCalls.map((request) => (
               <li key={request._id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div><p className="font-semibold">Table {typeof request.tableId === "string" ? "—" : request.tableId.tableNumber} · {request.type === "bill" ? "Bill requested" : "Assistance requested"}</p><p className="mt-1 text-xs text-slate-500">{new Date(request.createdAt).toLocaleTimeString()}</p></div>
+                <div><p className="font-semibold">Table {typeof request.tableId === "string" ? "—" : request.tableId.tableNumber} · Assistance requested</p><p className="mt-1 text-xs text-slate-500">{new Date(request.createdAt).toLocaleTimeString()}</p></div>
                 <button type="button" disabled={attendingCallId === request._id} onClick={() => void markStaffCallAttended(request._id)} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Mark attended</button>
               </li>
             ))}

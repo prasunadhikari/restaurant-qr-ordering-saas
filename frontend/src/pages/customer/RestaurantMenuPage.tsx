@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PhoneCall } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import CategoryTabs from "../../components/customer/CategoryTabs";
@@ -483,23 +484,21 @@ function RestaurantMenuPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f6f0] pb-32">
-      {activeSession && (
+      {activeSession && !isOrderConfirmed && (
         <aside className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-2xl border border-[#e9e4d9] bg-white p-3 shadow-xl sm:bottom-6 sm:right-6 sm:flex-row">
-          {(["assistance", "bill"] as const).map((type) => (
-            <button
-              key={type}
-              type="button"
-              disabled={staffCallBusy !== null || staffCallStatus[type] === "pending"}
-              onClick={() => void handleCallStaff(type)}
-              className="min-h-10 rounded-xl bg-[#173b32] px-4 text-xs font-semibold text-white transition hover:bg-[#245747] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {staffCallStatus[type] === "pending"
-                ? type === "bill" ? "Bill requested" : "Staff notified"
-                : staffCallBusy === type
-                  ? "Sending…"
-                  : type === "bill" ? "Request bill" : "Call staff"}
-            </button>
-          ))}
+          <button
+            type="button"
+            disabled={staffCallBusy !== null || staffCallStatus.assistance === "pending"}
+            onClick={() => void handleCallStaff("assistance")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#173b32] px-5 text-sm font-semibold text-white shadow-md shadow-[#173b32]/15 transition hover:-translate-y-0.5 hover:bg-[#245747] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <PhoneCall size={16} />
+            {staffCallStatus.assistance === "pending"
+              ? "Staff notified"
+              : staffCallBusy === "assistance"
+                ? "Calling…"
+                : "Call staff"}
+          </button>
         </aside>
       )}
       {staffCallError && (

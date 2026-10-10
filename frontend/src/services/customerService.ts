@@ -110,7 +110,7 @@ export interface CustomerTableBill {
   canPay: boolean;
 }
 
-export type CustomerStaffCallType = "assistance" | "bill";
+export type CustomerStaffCallType = "assistance";
 
 interface ApiResponse<T> {
   success: boolean;

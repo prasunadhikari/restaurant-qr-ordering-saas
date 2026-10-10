@@ -25,7 +25,7 @@ export const createPublicStaffCall = async (
     res.status(400).json({ success: false, message: "An active table session is required" });
     return;
   }
-  if (type !== "assistance" && type !== "bill") {
+  if (type !== "assistance") {
     res.status(400).json({ success: false, message: "Invalid staff request type" });
     return;
   }
@@ -89,6 +89,7 @@ export const getStaffCallRequests = async (
       ? await StaffCallRequest.find({
           restaurantId,
           status: "pending",
+          type: "assistance",
           tableSessionId: { $in: activeSessions.map((session) => session._id) },
         })
           .populate("tableId", "tableNumber")

@@ -4,9 +4,12 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import {
+  closeManagerTableSession,
   getManagerOrders,
+  getManagerTables,
   updateManagerOrder,
   type ManagerOrder,
+  type ManagerTable,
 } from "../../services/managerService";
 
 const statusLabel = (status: string) =>
@@ -31,6 +34,7 @@ const cancellationReasons = [
 
 function ManagerOrdersPage() {
   const [orders, setOrders] = useState<ManagerOrder[]>([]);
+  const [tables, setTables] = useState<ManagerTable[]>([]);
   const [filter, setFilter] = useState("all");
   const [expanded, setExpanded] = useState("");
   const [loading, setLoading] = useState(true);
@@ -47,7 +51,12 @@ function ManagerOrdersPage() {
     requestInFlight.current = true;
     setError("");
     try {
-      setOrders(await getManagerOrders());
+      const [latestOrders, latestTables] = await Promise.all([
+        getManagerOrders(),
+        getManagerTables(),
+      ]);
+      setOrders(latestOrders);
+      setTables(latestTables);
       setLastRefresh(new Date());
     } catch (cause) {
       console.error("Failed to load manager orders:", cause);
@@ -90,6 +99,7 @@ function ManagerOrdersPage() {
     try {
       const updated = await updateManagerOrder(order._id, status, reason);
       setOrders((current) => current.map((entry) => entry._id === updated._id ? updated : entry));
+      setTables(await getManagerTables());
       return true;
     } catch (cause) {
       console.error("Failed to update manager order:", cause);
@@ -123,6 +133,38 @@ function ManagerOrdersPage() {
     accepted: "preparing",
     preparing: "ready",
     ready: "served",
+  };
+  const tableByNumber = new Map(tables.map((table) => [table.tableNumber, table]));
+  const tableEmptyOrderIds = new Set<string>();
+  const seenTables = new Set<string>();
+  for (const order of orders) {
+    const tableNumber = typeof order.tableId === "string" ? "" : order.tableId?.tableNumber ?? "";
+    const table = tableByNumber.get(tableNumber);
+    if (table?.activeSessionId && !seenTables.has(tableNumber) && statusLabel(order.status) === "served") {
+      tableEmptyOrderIds.add(order._id);
+      seenTables.add(tableNumber);
+    }
+  }
+
+  const clearTable = async (table: ManagerTable) => {
+    if (!window.confirm(`Confirm Table ${table.tableNumber} is empty and cleaned? This closes its active customer session.`)) return;
+    setBusyId(table._id);
+    setError("");
+    try {
+      await closeManagerTableSession(table._id);
+      const [latestOrders, latestTables] = await Promise.all([
+        getManagerOrders(),
+        getManagerTables(),
+      ]);
+      setOrders(latestOrders);
+      setTables(latestTables);
+      setLastRefresh(new Date());
+    } catch (cause) {
+      console.error("Failed to clear manager table:", cause);
+      setError(cause instanceof Error ? cause.message : "Unable to clear this table.");
+    } finally {
+      setBusyId("");
+    }
   };
 
   return (
@@ -159,9 +201,30 @@ function ManagerOrdersPage() {
                   <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
                     <span className="font-bold text-slate-900">NPR {order.total.toLocaleString()}</span>
                     {next && <Button type="button" size="sm" disabled={busyId === order._id} onClick={() => void changeStatus(order, next)}><Check size={15} />{busyId === order._id ? "Saving…" : status === "pending" ? "Accept" : `Mark ${next}`}</Button>}
+                    {status === "served" && tableEmptyOrderIds.has(order._id) && (() => {
+                      const table = tableByNumber.get(tableNumber);
+                      if (!table?.activeSessionId) return null;
+                      return (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!table.canClear || busyId === table._id}
+                          title={!table.canClear ? "Serve all table orders and settle the bill before clearing this table" : undefined}
+                          onClick={() => void clearTable(table)}
+                        >
+                          {busyId === table._id ? "Clearing…" : "Table Empty"}
+                        </Button>
+                      );
+                    })()}
                     {(status === "pending" || status === "accepted") && <button type="button" disabled={busyId === order._id} onClick={() => void changeStatus(order, "cancelled")} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-red-700 hover:bg-red-50"><CircleX size={15} />Decline</button>}
                   </div>
                 </div>
+                {status === "served" && tableEmptyOrderIds.has(order._id) && !tableByNumber.get(tableNumber)?.canClear && (
+                  <p className="px-5 pb-3 text-right text-xs text-amber-800">
+                    Serve every order and settle the full table bill to clear this table.
+                  </p>
+                )}
                 {open && (
                   <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-4 sm:px-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_auto]">

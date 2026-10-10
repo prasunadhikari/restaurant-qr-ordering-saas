@@ -20,6 +20,11 @@ interface StaffOrderCardProps {
   onAdvance?: (order: StaffOrder) => void;
   updating?: boolean;
   compact?: boolean;
+  tableEmpty?: {
+    canClear: boolean;
+    busy: boolean;
+    onClick: () => void;
+  };
 }
 
 function StaffOrderCard({
@@ -27,6 +32,7 @@ function StaffOrderCard({
   onAdvance,
   updating = false,
   compact = false,
+  tableEmpty,
 }: StaffOrderCardProps) {
   const actionLabel = nextStatusLabels[order.status];
   const action = actionLabel && onAdvance;
@@ -107,7 +113,23 @@ function StaffOrderCard({
             {updating ? "Updating…" : actionLabel}
           </button>
         )}
+        {order.status === "served" && tableEmpty && (
+          <button
+            type="button"
+            disabled={!tableEmpty.canClear || tableEmpty.busy}
+            onClick={tableEmpty.onClick}
+            title={!tableEmpty.canClear ? "Serve all table orders and settle the bill before clearing this table" : undefined}
+            className="min-h-11 rounded-xl border border-emerald-700 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {tableEmpty.busy ? "Clearing…" : "Table Empty"}
+          </button>
+        )}
       </div>
+      {order.status === "served" && tableEmpty && !tableEmpty.canClear && (
+        <p className="mt-2 text-right text-xs text-amber-800">
+          Serve every order and settle the full table bill to clear this table.
+        </p>
+      )}
     </article>
   );
 }
